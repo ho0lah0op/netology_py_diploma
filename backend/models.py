@@ -4,15 +4,19 @@ from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.validators import UnicodeUsernameValidator
 from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator, MinValueValidator
 
 from django.db import models
 from django_rest_passwordreset.tokens import get_token_generator
 
-from backend.constants import USERNAME_FIELD_LEN, COMPANY_FIELD_LEN, POSITION_FIELD_LEN, TYPE_FIELD_LEN, \
-    SHOPNAME_FIELD_LEN, CATNAME_FIELD_LEN, PRNAME_FIELD_LEN, PARAMNAME_FIELD_LEN, \
-    MODEL_FIELD_LEN, VALUE_FIELD_LEN, CITY_FIELD_LEN, \
-    STREET_FIELD_LEN, HOUSE_FIELD_LEN, STRUCTURE_FIELD_LEN, BUILDING_FIELD_LEN, APARTMENT_FIELD_LEN, PHONE_FIELD_LEN, \
-    STATE_FIELD_LEN, KEY_FIELD_LEN
+from backend.constants import (
+    USERNAME_FIELD_LEN, COMPANY_FIELD_LEN, POSITION_FIELD_LEN, TYPE_FIELD_LEN,
+    SHOPNAME_FIELD_LEN, CATNAME_FIELD_LEN, PRNAME_FIELD_LEN,
+    PARAMNAME_FIELD_LEN, MODEL_FIELD_LEN, VALUE_FIELD_LEN,
+    CITY_FIELD_LEN, STREET_FIELD_LEN,
+    HOUSE_FIELD_LEN, STRUCTURE_FIELD_LEN, BUILDING_FIELD_LEN,
+    APARTMENT_FIELD_LEN, PHONE_FIELD_LEN, STATE_FIELD_LEN, KEY_FIELD_LEN)
+from backend.validators import PhoneNumberValidator
 
 STATE_CHOICES = (
     ("basket", "Статус корзины"),
@@ -90,7 +94,7 @@ class User(AbstractUser):
         max_length=USERNAME_FIELD_LEN,
         help_text=(
             f"Обязательно: {USERNAME_FIELD_LEN} значений или меньше. "
-            f"Только буквы, цифры и спецсимволы: @/./+/-/_"
+            "Только буквы, цифры и спецсимволы: @/./+/-/_"
         ),
         validators=[UnicodeUsernameValidator()],
         error_messages={
@@ -204,7 +208,6 @@ class ProductInfo(models.Model):
     product = models.ForeignKey(
         Product,
         verbose_name="Продукт",
-        # ToDo: Переименовать related name
         related_name="product_infos",
         # blank=True,
         on_delete=models.CASCADE,
@@ -212,7 +215,6 @@ class ProductInfo(models.Model):
     shop = models.ForeignKey(
         Shop,
         verbose_name="Магазин",
-        # ToDo: Переименовать related name
         related_name="product_infos",
         # blank=True,
         on_delete=models.CASCADE,
@@ -220,22 +222,27 @@ class ProductInfo(models.Model):
     quantity = models.PositiveSmallIntegerField(
         "Количество",
         validators=[
-            # Валидация количества больше нуля
-            lambda value: ProductInfo.validate_not_zero_quantity(value)
+            # ToDo: Min Validator (1)
         ]
     )
     price = models.FloatField(
         "Цена",
         validators=[
-            # Валидация минимальной цены (стоимости)
-            lambda value: ProductInfo.validate_min_price(value)
+            # ToDo: Константа на минимальную цену
+            MinValueValidator(
+                0.1,
+                message=f"Цена должна быть больше {0.1}"
+            )
         ]
     )
     price_rrc = models.FloatField(
         "Рекомендуемая розничная цена",
         validators=[
-            # Валидация минимальной цены (стоимости)
-            lambda value: ProductInfo.validate_min_price_rrc(value)
+            # ToDo: Константа на минимальную цену
+            MinValueValidator(
+                0.1,
+                message=f"Рекомендуемая розничная цена должна быть больше {0.1}"
+            )
         ]
     )
 
@@ -248,27 +255,6 @@ class ProductInfo(models.Model):
                 name="unique_product_info"
             ),
         ]
-
-    @staticmethod
-    def validate_not_zero_quantity(value):
-        if value < 1:
-            raise ValidationError(
-                "Количество товара должно быть больше нуля!"
-            )
-
-    @staticmethod
-    def validate_min_price(value):
-        if value < 0.1:
-            raise ValidationError(
-                "Цена должна быть больше 0.1"
-            )
-
-    @staticmethod
-    def validate_min_price_rrc(value):
-        if value < 0.1:
-            raise ValidationError(
-                "Рекомендуемая розничная цена должна быть больше 0.1"
-            )
 
 
 class Parameter(models.Model):
@@ -358,21 +344,12 @@ class Contact(models.Model):
     phone = models.CharField(
         "Телефон",
         max_length=PHONE_FIELD_LEN,
-        validators=[
-            # Валидация телефонных номеров
-            lambda value: Contact.validate_phone_number(value)
-        ]
+        validators=[PhoneNumberValidator()]
     )
 
     class Meta:
         verbose_name = "Контакты пользователя"
         verbose_name_plural = "Список контактов пользователя"
-
-    @staticmethod
-    def validate_phone_number(value):
-        pattern = r'^((8|\+7)[\- ]?)?(\(?\d{3}\)?[\- ]?)?[\d\- ]{7,10}$'
-        if not re.match(pattern, value):
-            raise ValidationError('Некорректный формат российского телефонного номера.')
 
     def __str__(self):
         return f"{self.city} {self.street} {self.house}"
@@ -432,7 +409,7 @@ class OrderItem(models.Model):
     quantity = models.PositiveSmallIntegerField(
         "Количество",
         validators=[
-            # ToDo: Валидация количества больше нуля
+            # ToDo: Валидация количества больше нуля (1)
         ]
     )
 
@@ -453,7 +430,8 @@ class ConfirmEmailToken(models.Model):
         User,
         related_name="confirm_email_tokens",
         on_delete=models.CASCADE,
-        verbose_name="Пользователь, который связан с этим токеном сброса пароля",
+        verbose_name=("Пользователь, который связан с "
+                      "этим токеном сброса пароля"),
     )
     created_at = models.DateTimeField(
         "Время генерации токена",
