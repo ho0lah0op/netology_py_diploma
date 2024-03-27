@@ -21,6 +21,11 @@ class OrderAdmin(admin.ModelAdmin):
 
 
 # ToDo: Зарегистрировать все остальные модели
+# @admin.register(Shop)
+# class ShopAdmin(admin.ModelAdmin):
+#     list_display = ('name', 'url', 'user', 'state', 'created_at', 'updated_at')
+#     list_filter = ('state', 'user')
+#     files = ('name', 'url', 'user', 'state', 'created_at', 'updated_at')
+#     search_fields = ('name', 'url', 'user')
 
-admin.site.register(Shop)
 admin.site.register(Product)
