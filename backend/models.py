@@ -4,7 +4,7 @@ from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.validators import UnicodeUsernameValidator
 from django.core.exceptions import ValidationError
-from django.core.validators import MaxValueValidator, MinValueValidator
+from django.core.validators import MinValueValidator
 
 from django.db import models
 from django_rest_passwordreset.tokens import get_token_generator
@@ -16,7 +16,9 @@ from backend.constants import (
     CITY_FIELD_LEN, STREET_FIELD_LEN,
     HOUSE_FIELD_LEN, STRUCTURE_FIELD_LEN, BUILDING_FIELD_LEN,
     APARTMENT_FIELD_LEN, PHONE_FIELD_LEN, STATE_FIELD_LEN, KEY_FIELD_LEN)
+from backend.mixins import TimeStampMixin
 from backend.validators import PhoneNumberValidator
+
 
 STATE_CHOICES = (
     ("basket", "Статус корзины"),
@@ -66,7 +68,7 @@ class UserManager(BaseUserManager):
         return self._create_user(email, password, **extra_fields)
 
 
-class User(AbstractUser):
+class User(AbstractUser, TimeStampMixin):
     """
     Стандартная модель пользователей
     """
@@ -116,7 +118,6 @@ class User(AbstractUser):
         default="buyer",
     )
 
-    # ToDo: Дата создания и дата обновления пользователя
 
     def __str__(self):
         return self.username
@@ -173,7 +174,7 @@ class Category(models.Model):
         return self.name
 
 
-class Product(models.Model):
+class Product(TimeStampMixin):
     objects = models.manager.Manager()
     name = models.CharField(
         "Название",
@@ -355,7 +356,7 @@ class Contact(models.Model):
         return f"{self.city} {self.street} {self.house}"
 
 
-class Order(models.Model):
+class Order(TimeStampMixin):
     objects = models.manager.Manager()
     user = models.ForeignKey(
         User,
@@ -364,7 +365,6 @@ class Order(models.Model):
         # blank=True,
         on_delete=models.CASCADE,
     )
-    created_at = models.DateTimeField(auto_now_add=True)
     state = models.CharField(
         "Статус",
         choices=STATE_CHOICES,
