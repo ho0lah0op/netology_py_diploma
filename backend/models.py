@@ -1,9 +1,6 @@
-import re
-
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.validators import UnicodeUsernameValidator
-from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 
 from django.db import models
@@ -15,7 +12,9 @@ from backend.constants import (
     PARAMNAME_FIELD_LEN, MODEL_FIELD_LEN, VALUE_FIELD_LEN,
     CITY_FIELD_LEN, STREET_FIELD_LEN,
     HOUSE_FIELD_LEN, STRUCTURE_FIELD_LEN, BUILDING_FIELD_LEN,
-    APARTMENT_FIELD_LEN, PHONE_FIELD_LEN, STATE_FIELD_LEN, KEY_FIELD_LEN)
+    APARTMENT_FIELD_LEN, PHONE_FIELD_LEN, STATE_FIELD_LEN, KEY_FIELD_LEN,
+    MIN_PRICE_VALUE, MIN_QUANTITY_VALUE,
+    MIN_ORDER_QUANTITY_VALUE)
 from backend.mixins import TimeStampMixin
 from backend.validators import PhoneNumberValidator
 
@@ -118,7 +117,6 @@ class User(AbstractUser, TimeStampMixin):
         default="buyer",
     )
 
-
     def __str__(self):
         return self.username
 
@@ -157,7 +155,8 @@ class Category(models.Model):
     objects = models.manager.Manager()
     name = models.CharField(
         "Название",
-        max_length=CATNAME_FIELD_LEN)
+        max_length=CATNAME_FIELD_LEN
+    )
     shops = models.ManyToManyField(
         Shop,
         verbose_name="Магазины",
@@ -223,26 +222,27 @@ class ProductInfo(models.Model):
     quantity = models.PositiveSmallIntegerField(
         "Количество",
         validators=[
-            # ToDo: Min Validator (1)
+            MinValueValidator(
+                MIN_QUANTITY_VALUE,
+                message=f"Количество должно быть больше или равно {MIN_QUANTITY_VALUE}"
+            )
         ]
     )
     price = models.FloatField(
         "Цена",
         validators=[
-            # ToDo: Константа на минимальную цену
             MinValueValidator(
-                0.1,
-                message=f"Цена должна быть больше {0.1}"
+                MIN_PRICE_VALUE,
+                message=f"Цена должна быть больше {MIN_PRICE_VALUE}"
             )
         ]
     )
     price_rrc = models.FloatField(
         "Рекомендуемая розничная цена",
         validators=[
-            # ToDo: Константа на минимальную цену
             MinValueValidator(
-                0.1,
-                message=f"Рекомендуемая розничная цена должна быть больше {0.1}"
+                MIN_PRICE_VALUE,
+                message=f"Рекомендуемая розничная цена должна быть больше {MIN_PRICE_VALUE}"
             )
         ]
     )
@@ -409,7 +409,10 @@ class OrderItem(models.Model):
     quantity = models.PositiveSmallIntegerField(
         "Количество",
         validators=[
-            # ToDo: Валидация количества больше нуля (1)
+            MinValueValidator(
+                MIN_ORDER_QUANTITY_VALUE,
+                message=f"Количество должно быть больше или равно {MIN_ORDER_QUANTITY_VALUE}"
+            )
         ]
     )
 

@@ -15,6 +15,8 @@ PRNAME_FIELD_LEN = 80
 
 # Константы ProductInfo
 MODEL_FIELD_LEN = 80
+MIN_QUANTITY_VALUE = 1
+MIN_PRICE_VALUE = 0.1
 
 # Константы Parameter
 PARAMNAME_FIELD_LEN = 40
@@ -33,6 +35,7 @@ PHONE_FIELD_LEN = 20
 
 # Константы Order
 STATE_FIELD_LEN = 15
+MIN_ORDER_QUANTITY_VALUE = 1
 
 # Константы ConfirmEmailToken
 KEY_FIELD_LEN = 64
