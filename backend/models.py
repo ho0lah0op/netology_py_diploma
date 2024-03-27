@@ -1,6 +1,10 @@
+import re
+
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.validators import UnicodeUsernameValidator
+from django.core.exceptions import ValidationError
+
 from django.db import models
 from django_rest_passwordreset.tokens import get_token_generator
 
@@ -34,7 +38,6 @@ class UserManager(BaseUserManager):
         """
         if not email:
             raise ValueError("Адрес электронной почты не указан!")
-        # TODO: 1. Английский на русский
         email = self.normalize_email(email)
         user = self.model(email=email, **extra_fields)
         user.set_password(password)
@@ -72,7 +75,6 @@ class User(AbstractUser):
     USERNAME_FIELD = "email"
     objects = UserManager()
     email = models.EmailField("Электронная почта", unique=True)
-    # ToDo: 2. Вынести max_length в отдельные константы
     company = models.CharField(
         "Компания",
         max_length=COMPANY_FIELD_LEN,
@@ -218,19 +220,22 @@ class ProductInfo(models.Model):
     quantity = models.PositiveSmallIntegerField(
         "Количество",
         validators=[
-            # ToDo: Валидация количества больше нуля
+            # Валидация количества больше нуля
+            lambda value: ProductInfo.validate_not_zero_quantity(value)
         ]
     )
     price = models.FloatField(
         "Цена",
         validators=[
-            # ToDo: валидация минимальной цены (стоимости)
+            # Валидация минимальной цены (стоимости)
+            lambda value: ProductInfo.validate_min_price(value)
         ]
     )
     price_rrc = models.FloatField(
         "Рекомендуемая розничная цена",
         validators=[
-            # ToDo: валидация минимальной цены (стоимости)
+            # Валидация минимальной цены (стоимости)
+            lambda value: ProductInfo.validate_min_price_rrc(value)
         ]
     )
 
@@ -243,6 +248,27 @@ class ProductInfo(models.Model):
                 name="unique_product_info"
             ),
         ]
+
+    @staticmethod
+    def validate_not_zero_quantity(value):
+        if value < 1:
+            raise ValidationError(
+                "Количество товара должно быть больше нуля!"
+            )
+
+    @staticmethod
+    def validate_min_price(value):
+        if value < 0.1:
+            raise ValidationError(
+                "Цена должна быть больше 0.1"
+            )
+
+    @staticmethod
+    def validate_min_price_rrc(value):
+        if value < 0.1:
+            raise ValidationError(
+                "Рекомендуемая розничная цена должна быть больше 0.1"
+            )
 
 
 class Parameter(models.Model):
@@ -333,13 +359,20 @@ class Contact(models.Model):
         "Телефон",
         max_length=PHONE_FIELD_LEN,
         validators=[
-            # ToDo: Валидация телефонных номеров
+            # Валидация телефонных номеров
+            lambda value: Contact.validate_phone_number(value)
         ]
     )
 
     class Meta:
         verbose_name = "Контакты пользователя"
         verbose_name_plural = "Список контактов пользователя"
+
+    @staticmethod
+    def validate_phone_number(value):
+        pattern = r'^((8|\+7)[\- ]?)?(\(?\d{3}\)?[\- ]?)?[\d\- ]{7,10}$'
+        if not re.match(pattern, value):
+            raise ValidationError('Некорректный формат российского телефонного номера.')
 
     def __str__(self):
         return f"{self.city} {self.street} {self.house}"
@@ -420,8 +453,7 @@ class ConfirmEmailToken(models.Model):
         User,
         related_name="confirm_email_tokens",
         on_delete=models.CASCADE,
-        # ToDo: На русский
-        verbose_name="The User which is associated to this password reset token",
+        verbose_name="Пользователь, который связан с этим токеном сброса пароля",
     )
     created_at = models.DateTimeField(
         "Время генерации токена",
@@ -429,7 +461,6 @@ class ConfirmEmailToken(models.Model):
     )
     key = models.CharField(
         "Код подтверждения",
-        # ToDo: Константа
         max_length=KEY_FIELD_LEN,
         db_index=True,
         unique=True
@@ -451,4 +482,4 @@ class ConfirmEmailToken(models.Model):
         return super(ConfirmEmailToken, self).save(*args, **kwargs)
 
     def __str__(self):
-        return f"Password reset token for user {self.user}"
+        return f"Токен сброса пароля для пользователя: {self.user}"
