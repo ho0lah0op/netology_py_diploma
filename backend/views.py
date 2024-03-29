@@ -1,10 +1,14 @@
-import datetime
+from djoser.views import UserViewSet as BaseUserViewSet
 
-from django.http import HttpResponse
-from django.shortcuts import render
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
 
 
-def time(request):
-    return HttpResponse(f"Time = {datetime.datetime.now().time()}")
+from backend.models import User
+from backend.serializers import UserSerializer
 
-# Create your views here.
+
+class UserViewSet(BaseUserViewSet):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = IsAuthenticatedOrReadOnly
+

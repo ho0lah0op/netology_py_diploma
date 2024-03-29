@@ -4,6 +4,7 @@ from django.contrib.auth.validators import UnicodeUsernameValidator
 from django.core.validators import MinValueValidator
 
 from django.db import models
+from django.db.models import Sum
 from django_rest_passwordreset.tokens import get_token_generator
 
 from backend.constants import (
@@ -17,17 +18,6 @@ from backend.constants import (
     MIN_ORDER_QUANTITY_VALUE)
 from backend.mixins import TimeStampMixin
 from backend.validators import PhoneNumberValidator
-
-
-STATE_CHOICES = (
-    ("basket", "Статус корзины"),
-    ("new", "Новый"),
-    ("confirmed", "Подтвержден"),
-    ("assembled", "Собран"),
-    ("sent", "Отправлен"),
-    ("delivered", "Доставлен"),
-    ("canceled", "Отменен"),
-)
 
 
 class UserManager(BaseUserManager):
@@ -203,7 +193,6 @@ class ProductInfo(models.Model):
         max_length=MODEL_FIELD_LEN,
         blank=True
     )
-    # ToDo: Пересмотреть external id (нужно ли?)
     external_id = models.PositiveIntegerField("Внешний ИД")
     product = models.ForeignKey(
         Product,
@@ -357,6 +346,16 @@ class Contact(models.Model):
 
 
 class Order(TimeStampMixin):
+    STATE_CHOICES = (
+        ("basket", "Статус корзины"),
+        ("new", "Новый"),
+        ("confirmed", "Подтвержден"),
+        ("assembled", "Собран"),
+        ("sent", "Отправлен"),
+        ("delivered", "Доставлен"),
+        ("canceled", "Отменен"),
+    )
+
     objects = models.manager.Manager()
     user = models.ForeignKey(
         User,
@@ -386,7 +385,9 @@ class Order(TimeStampMixin):
 
     # @property
     # def sum(self):
-    #     return self.ordered_items.aggregate(total=Sum("quantity"))["total"]
+    #     return self.ordered_items.aggregate(
+    #         total=Sum("quantity")
+    #     )["total"]
 
 
 class OrderItem(models.Model):

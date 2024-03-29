@@ -43,6 +43,9 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     'backend',
+    'rest_framework',
+    'djoser'
+
 ]
 
 MIDDLEWARE = [
@@ -128,3 +131,11 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'backend.User'
+
+DJOSER = {
+    'SERIALIZERS': {
+        'user_create': 'backend.serializers.UserSerializer',
+        'user': 'backend.serializers.UserSerializer',
+    },
+
+}
