@@ -152,3 +152,13 @@ REST_FRAMEWORK = {
 }
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+DJOSER = {
+
+    "SERIALIZERS": {
+        "user_create": "backend.serializers.UserSerializer",
+        "user": "backend.serializers.UserSerializer",
+
+    }
+
+}
