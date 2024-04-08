@@ -2,9 +2,7 @@ from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.validators import UnicodeUsernameValidator
 from django.core.validators import MinValueValidator
-
 from django.db import models
-from django.db.models import Sum
 from django_rest_passwordreset.tokens import get_token_generator
 
 from backend.constants import (
@@ -107,13 +105,13 @@ class User(AbstractUser, TimeStampMixin):
         default="buyer",
     )
 
-    def __str__(self):
-        return self.username
-
     class Meta:
         verbose_name = "Пользователь"
         verbose_name_plural = "Список пользователей"
         ordering = ("username", "email")
+
+    def __str__(self):
+        return self.username
 
 
 class Shop(models.Model):
@@ -213,7 +211,8 @@ class ProductInfo(models.Model):
         validators=[
             MinValueValidator(
                 MIN_QUANTITY_VALUE,
-                message=f"Количество должно быть больше или равно {MIN_QUANTITY_VALUE}"
+                message=(f"Количество должно быть "
+                        f"больше или равно {MIN_QUANTITY_VALUE}")
             )
         ]
     )
@@ -231,7 +230,8 @@ class ProductInfo(models.Model):
         validators=[
             MinValueValidator(
                 MIN_PRICE_VALUE,
-                message=f"Рекомендуемая розничная цена должна быть больше {MIN_PRICE_VALUE}"
+                message=(f"Рекомендуемая розничная цена "
+                        f"должна быть больше {MIN_PRICE_VALUE}")
             )
         ]
     )
@@ -383,12 +383,6 @@ class Order(TimeStampMixin):
     def __str__(self):
         return str(self.created_at)
 
-    # @property
-    # def sum(self):
-    #     return self.ordered_items.aggregate(
-    #         total=Sum("quantity")
-    #     )["total"]
-
 
 class OrderItem(models.Model):
     objects = models.manager.Manager()
@@ -412,7 +406,8 @@ class OrderItem(models.Model):
         validators=[
             MinValueValidator(
                 MIN_ORDER_QUANTITY_VALUE,
-                message=f"Количество должно быть больше или равно {MIN_ORDER_QUANTITY_VALUE}"
+                message=(f"Количество должно быть "
+                        f"больше или равно {MIN_ORDER_QUANTITY_VALUE}")
             )
         ]
     )
@@ -434,8 +429,10 @@ class ConfirmEmailToken(models.Model):
         User,
         related_name="confirm_email_tokens",
         on_delete=models.CASCADE,
-        verbose_name=("Пользователь, который связан с "
-                      "этим токеном сброса пароля"),
+        verbose_name=(
+            "Пользователь, который связан с "
+            "этим токеном сброса пароля"
+        ),
     )
     created_at = models.DateTimeField(
         "Время генерации токена",

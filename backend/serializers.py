@@ -1,10 +1,21 @@
-from rest_framework import serializers, status
-from rest_framework.exceptions import ValidationError
+from rest_framework import serializers
 
-from backend.models import User, Category, Shop, ProductInfo, Product, ProductParameter, OrderItem, Order, Contact
+from backend.mixins import CustomValidationMixin
+from backend.models import (
+    Category,
+    Contact,
+    Order,
+    OrderItem,
+    Product,
+    ProductInfo,
+    ProductParameter,
+    Shop,
+    User,
+)
 
 
-class ContactSerializer(serializers.ModelSerializer):
+class ContactSerializer(CustomValidationMixin,
+                        serializers.ModelSerializer):
     class Meta:
         model = Contact
         fields = ('id', 'city', 'street', 'house', 'structure',
@@ -15,15 +26,16 @@ class ContactSerializer(serializers.ModelSerializer):
         }
 
     def validate_city(self, value):
-        if not value.replace('-', '').replace(' ', '').isalpha():
-            raise ValidationError(
-                detail='Название города не может '
-                       'содержать символы, кроме букв и дефиса',
-                code=status.HTTP_400_BAD_REQUEST)
+        self.is_alpha(
+            value,
+            err_msg=('Название города может содержать '
+                     'только буквы и дефис')
+        )
         return value
 
 
-class UserSerializer(serializers.ModelSerializer):
+class UserSerializer(CustomValidationMixin,
+                     serializers.ModelSerializer):
     contacts = ContactSerializer(read_only=True, many=True)
 
     class Meta:
@@ -32,22 +44,18 @@ class UserSerializer(serializers.ModelSerializer):
                   'company', 'position', 'contacts')
         read_only_fields = ('id',)
 
-    def validate_first_name(self, value):
-        if not self.__is_alpha(value):
-            raise ValidationError(
-                detail='В имени имеются недопустимые символы',
-                code=status.HTTP_400_BAD_REQUEST)
-        return value
+    def validate(self, attrs):
+        self.is_alpha(
+            attrs.get('first_name'),
+            err_msg='В имени имеются недопустимые символы'
+        )
 
-    def validate_last_name(self, value):
-        if not self.__is_alpha(value):
-            raise ValidationError(
-                detail='В фамилии имеются недопустимые символы',
-                code=status.HTTP_400_BAD_REQUEST)
-        return value
+        self.is_alpha(
+            attrs.get('last_name'),
+            err_msg='В фамилии имеются недопустимые символы'
+        )
 
-    def __is_alpha(self, data):
-        return data.replace('-', '').replace(' ', '').isalpha()
+        return attrs
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -83,46 +91,33 @@ class ProductParameterSerializer(serializers.ModelSerializer):
         fields = ('parameter', 'value',)
 
 
-class ProductInfoSerializer(serializers.ModelSerializer):
+class ProductInfoSerializer(CustomValidationMixin,
+                            serializers.ModelSerializer):
     product = ProductSerializer(read_only=True)
-    product_parameters = ProductParameterSerializer(read_only=True, many=True)
+    product_parameters = ProductParameterSerializer(
+        read_only=True,
+        many=True
+    )
 
     class Meta:
         model = ProductInfo
-        fields = ('id', 'model', 'product', 'shop',
-                  'quantity', 'price', 'price_rrc', 'product_parameters',)
+        fields = ('id', 'model', 'product', 'shop', 'quantity',
+                  'price', 'price_rrc', 'product_parameters',)
         read_only_fields = ('id',)
 
-    def validate_quantity(self, value):
-        if value.isdigit() and int(value) <= 0:
-            raise ValidationError(
-                detail='Укажите корректное количество',
-                code=status.HTTP_400_BAD_REQUEST
-            )
-        return value
+    def validate(self, attrs):
+        self.is_valid_quantity(
+            attrs.get('quantity'),
+            err_msg='Укажите корректное количество'
+        )
+        self.is_correct_price(attrs.get('price'))
+        self.is_correct_price(attrs.get('price_rrc'))
 
-    def validate_price(self, value):
-        self.__is_correct_price(value)
-        return value
-
-    def validate_price_rrc(self, value):
-        self.__is_correct_price(value)
-        return value
-
-    def __is_correct_price(self, data):
-        if not data.replace('.', '', 1).isdigit():
-            raise ValidationError(
-                detail='Некорректное значение! '
-                       'Если дробное значение, укажите через точку',
-                code=status.HTTP_400_BAD_REQUEST)
-
-        if float(data) <= 0:
-            raise ValidationError(
-                detail='Стоимость должна быть больше 0.',
-                code=status.HTTP_400_BAD_REQUEST)
+        return attrs
 
 
-class OrderItemSerializer(serializers.ModelSerializer):
+class OrderItemSerializer(CustomValidationMixin,
+                          serializers.ModelSerializer):
     class Meta:
         model = OrderItem
         fields = ('id', 'product_info', 'quantity', 'order',)
@@ -132,11 +127,10 @@ class OrderItemSerializer(serializers.ModelSerializer):
         }
 
     def validate_quantity(self, value):
-        if value.isdigit() and int(value) <= 0:
-            raise ValidationError(
-                detail='Укажите корректное количество',
-                code=status.HTTP_400_BAD_REQUEST
-            )
+        self.is_valid_quantity(
+            value,
+            err_msg='Укажите корректное количество'
+        )
         return value
 
 
@@ -145,14 +139,16 @@ class OrderItemCreateSerializer(OrderItemSerializer):
 
 
 class OrderSerializer(serializers.ModelSerializer):
-    ordered_items = OrderItemCreateSerializer(read_only=True, many=True)
+    ordered_items = OrderItemCreateSerializer(
+        read_only=True,
+        many=True
+    )
     total_sum = serializers.IntegerField()
     contact = ContactSerializer(read_only=True)
 
     class Meta:
         model = Order
         fields = ('id', 'ordered_items', 'state',
-                  # 'total_sum',
-                  'contact', 'create_at')
+                  'total_sum', 'contact', 'create_at')
 
         read_only_fields = ('id', 'created_at')
