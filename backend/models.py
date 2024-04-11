@@ -7,7 +7,7 @@ from django_rest_passwordreset.tokens import get_token_generator
 
 from backend.constants import (
     USERNAME_FIELD_LEN, COMPANY_FIELD_LEN, POSITION_FIELD_LEN, TYPE_FIELD_LEN,
-    SHOPNAME_FIELD_LEN, CATNAME_FIELD_LEN, PRNAME_FIELD_LEN,
+    SHOPNAME_FIELD_LEN, CATNAME_FIELD_LEN, ORDER_STATUS, PRNAME_FIELD_LEN,
     PARAMNAME_FIELD_LEN, MODEL_FIELD_LEN, VALUE_FIELD_LEN,
     CITY_FIELD_LEN, STREET_FIELD_LEN,
     HOUSE_FIELD_LEN, STRUCTURE_FIELD_LEN, BUILDING_FIELD_LEN,
@@ -19,9 +19,7 @@ from backend.validators import PhoneNumberValidator
 
 
 class UserManager(BaseUserManager):
-    """
-    Миксин для управления пользователями
-    """
+    """Миксин для управления пользователями."""
 
     use_in_migrations = True
 
@@ -56,9 +54,7 @@ class UserManager(BaseUserManager):
 
 
 class User(AbstractUser, TimeStampMixin):
-    """
-    Стандартная модель пользователей
-    """
+    """Стандартная модель пользователей."""
 
     USER_TYPE_CHOICES = (
         ("shop", "Магазин"),
@@ -346,16 +342,6 @@ class Contact(models.Model):
 
 
 class Order(TimeStampMixin):
-    STATE_CHOICES = (
-        ("basket", "Статус корзины"),
-        ("new", "Новый"),
-        ("confirmed", "Подтвержден"),
-        ("assembled", "Собран"),
-        ("sent", "Отправлен"),
-        ("delivered", "Доставлен"),
-        ("canceled", "Отменен"),
-    )
-
     objects = models.manager.Manager()
     user = models.ForeignKey(
         User,
@@ -366,7 +352,7 @@ class Order(TimeStampMixin):
     )
     state = models.CharField(
         "Статус",
-        choices=STATE_CHOICES,
+        choices=tuple(ORDER_STATUS.items()),
         max_length=STATE_FIELD_LEN
     )
     contact = models.ForeignKey(

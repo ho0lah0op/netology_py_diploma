@@ -39,3 +39,14 @@ MIN_ORDER_QUANTITY_VALUE = 1
 
 # Константы ConfirmEmailToken
 KEY_FIELD_LEN = 64
+
+# Статусы заказа
+ORDER_STATUS = {
+    "basket": "Статус корзины",
+    "new": "Новый",
+    "confirmed": "Подтвержден",
+    "assembled": "Собран",
+    "sent": "Отправлен",
+    "delivered": "Доставлен",
+    "canceled": "Отменен",
+}
