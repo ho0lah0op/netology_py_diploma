@@ -63,7 +63,20 @@ class CategorySerializer(serializers.ModelSerializer):
         model = Category
         fields = ('id', 'name',)
         read_only_fields = ('id',)
-        # ToDo: Валидатор на существование категории
+
+        def validate_name(self, value):
+            """Проверяет существование категории по имени.
+
+            :param str value: Название категории.
+            :return: Название категории, если она существует.
+            :raises serializers.ValidationError: Если категория
+            с указанным именем не существует.
+            """
+            if not Category.objects.filter(name=value).exists():
+                raise serializers.ValidationError(
+                    'Категория с таким названием не существует.'
+                )
+            return value
 
 
 class ShopSerializer(serializers.ModelSerializer):
@@ -74,13 +87,34 @@ class ShopSerializer(serializers.ModelSerializer):
 
 
 class ProductSerializer(serializers.ModelSerializer):
-    # ToDo: Пересмотреть на то, что это лишний атрибут
-    # ToDo: Валидатор на совпадения продуктов
     category = serializers.StringRelatedField()
 
     class Meta:
         model = Product
         fields = ('name', 'category',)
+
+    def validate_name(self, value):
+        """Проверяет существование продукта.
+
+         Проверяет существование продукта с таким
+         же именем в данной категории.
+
+         :param str value: Название продукта.
+         :return: Название продукта, если оно уникально в рамках категории.
+         :raises serializers.ValidationError: Если продукт с указанным
+         именем уже существует в данной категории.
+        """
+
+        category = self.context.get('category')
+        if Product.objects.filter(
+                name=value,
+                category=category
+        ).exists():
+            raise serializers.ValidationError(
+                'Продукт с таким же названием '
+                'уже существует в данной категории.'
+            )
+        return value
 
 
 class ProductParameterSerializer(serializers.ModelSerializer):
