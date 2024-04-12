@@ -12,13 +12,9 @@ from backend.views import (
 app_name = 'backend'
 
 router_v1 = SimpleRouter()
+
 router_v1.register(
-    'user',
-    UserViewSet,
-    basename='user'
-)
-router_v1.register(
-    'contact',
+    'user/contact',
     ContactViewSet,
     basename='user-contact'
 )
@@ -36,6 +32,11 @@ router_v1.register(
     'partner/update',
     PartnerUpdateViewSet,
     basename='partner-update'
+)
+router_v1.register(
+    'user',
+    UserViewSet,
+    basename='user'
 )
 
 urlpatterns = [

@@ -3,11 +3,12 @@ from djoser.views import UserViewSet as BaseUserViewSet
 from rest_framework import status, viewsets
 from rest_framework.permissions import (
     IsAuthenticatedOrReadOnly,
-    AllowAny,
+    AllowAny, IsAuthenticated,
 )
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import (
+    ViewSet,
     ModelViewSet,
     ReadOnlyModelViewSet
 )
@@ -19,9 +20,9 @@ from backend.models import (
     Shop,
     User,
 )
+from backend.permissions import IsAuthorOrReadOnly
 from backend.serializers import (
     CategorySerializer,
-    ConfirmAccountSerializer,
     ContactSerializer,
     LoginAccountSerializer,
     PartnerUpdateSerializer,
@@ -56,10 +57,88 @@ class UserViewSet(BaseUserViewSet):
         return Response(serializer.data)
 
 
-class ContactViewSet(ModelViewSet):
+class ContactViewSet(ViewSet):
     queryset = Contact.objects.all()
     serializer_class = ContactSerializer
-    permission_classes = (IsAuthenticatedOrReadOnly,)
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['get', 'post', 'patch', 'put', 'delete']
+
+    def list(self, request):
+        contacts = Contact.objects.filter(user=request.user)
+        serializer = ContactSerializer(contacts, many=True)
+        return Response(serializer.data)
+
+    def create(self, request):
+        serializer = ContactSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(user=request.user)
+            return Response(
+                data={
+                    'Status': True,
+                    'Message': 'Контакт создан'
+                },
+                status=status.HTTP_201_CREATED
+            )
+        return Response(
+            data={
+                'Status': False,
+                'Errors': serializer.errors
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    def destroy(self, request, pk=None):
+        try:
+            contact = Contact.objects.get(
+                pk=pk,
+                user=request.user
+            )
+            contact.delete()
+            return Response({'Status': True})
+        except Contact.DoesNotExist:
+            return Response(
+                data={
+                    'Status': False,
+                    'Error': 'Контакт не найден'
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+    def update(self, request, pk=None):
+        try:
+            contact = Contact.objects.get(
+                pk=pk,
+                user=request.user
+            )
+            serializer = ContactSerializer(
+                contact,
+                data=request.data,
+                partial=True
+            )
+            if serializer.is_valid():
+                serializer.save()
+                return Response(
+                    data={
+                        'Status': True,
+                        'Message': 'Данные контакта обновлены'
+                    },
+                    status=status.HTTP_200_OK
+                )
+            return Response(
+                data={
+                    'Status': False,
+                    'Errors': serializer.errors
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Contact.DoesNotExist:
+            return Response(
+                data={
+                    'Status': False,
+                    'Error': 'Контакт не найден'
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
 
 
 class CategoryViewSet(ModelViewSet):
@@ -112,7 +191,10 @@ class LoginAccountViewSet(viewsets.ViewSet):
                 data={'Status': True, 'Token': token.key},
                 status=status.HTTP_201_CREATED
             )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            serializer.errors,
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
 
 class PartnerUpdateViewSet(viewsets.ViewSet):

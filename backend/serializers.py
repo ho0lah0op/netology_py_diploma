@@ -268,24 +268,6 @@ class OrderSerializer(serializers.ModelSerializer):
         read_only_fields = ('id', 'created_at')
 
 
-class ConfirmAccountSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    token = serializers.CharField()
-
-    def validate(self, data):
-        validate_all_fields(('email', 'token'), data)
-        token = ConfirmEmailToken.objects.filter(
-            user__email=data.get('email'),
-            key=data.get('token')
-        ).first()
-        if not token:
-            raise serializers.ValidationError(
-                detail='Неверный токен',
-                code=status.HTTP_400_BAD_REQUEST
-            )
-        return token.user
-
-
 class LoginAccountSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField()
