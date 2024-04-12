@@ -51,11 +51,11 @@ def new_user_registered_signal(user_id, **kwargs):
     """
     token, _ = ConfirmEmailToken.objects.get_or_create(user_id=user_id)
     msg = EmailMultiAlternatives(
-        'Подтверждение пароля',
-        f'Токен сброса пароля для {token.user.email}',
-        token.key,
-        settings.EMAIL_HOST_USER,
-        [token.user.email]
+        subject='Подтверждение пароля',
+        body=(f'Токен сброса пароля для {token.user.email}'
+              f'\n{token.key}'),
+        from_email=settings.EMAIL_HOST_USER,
+        to=[token.user.email]
     )
     msg.send()
     print(f'Письмо отправлено: {token.user.email}')

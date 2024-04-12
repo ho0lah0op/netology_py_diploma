@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     'rest_framework',
+    'rest_framework.authtoken',
     'djoser',
     'django_rest_passwordreset',
 
@@ -126,14 +127,7 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'backend.User'
-
-DJOSER = {
-    'SERIALIZERS': {
-        'user_create': 'backend.serializers.UserSerializer',
-        'user': 'backend.serializers.UserSerializer',
-    },
-
-}
+AUTH_TOKEN_MODEL = 'backend.ConfirmEmailToken'
 
 # EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
@@ -148,9 +142,17 @@ SERVER_EMAIL = EMAIL_HOST_USER
 DEFAULT_EMAIL = EMAIL_HOST_USER
 EMAIL_ADMIN = EMAIL_HOST_USER
 
+DJOSER = {
+    'SERIALIZERS': {
+        'user_create': 'backend.serializers.UserSerializer',
+        'user': 'backend.serializers.UserSerializer',
+    },
+
+}
+
 REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 3,
+    'PAGE_SIZE': 10,
 
     'DEFAULT_RENDERER_CLASSES': (
         'rest_framework.renderers.JSONRenderer',
@@ -158,6 +160,11 @@ REST_FRAMEWORK = {
     ),
 
     'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework.authentication.SessionAuthentication',
         'rest_framework.authentication.TokenAuthentication',
     ),
+
+    # 'DEFAULT_PERMISSION_CLASSES': [
+    #     'rest_framework.permissions.IsAuthenticated',
+    # ],
 }
