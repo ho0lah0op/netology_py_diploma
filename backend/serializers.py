@@ -239,6 +239,13 @@ class OrderItemSerializer(CustomValidationMixin,
         extra_kwargs = {
             'order': {'write_only': True}
         }
+        validators = [
+            serializers.UniqueTogetherValidator(
+                queryset=OrderItem.objects.all(),
+                fields=['order', 'product_info'],
+                message='Позиция уже существует в корзине'
+            )
+        ]
 
     def validate_quantity(self, value):
         self.is_valid_quantity(
@@ -263,9 +270,9 @@ class OrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = ('id', 'ordered_items', 'state',
-                  'total_sum', 'contact', 'create_at')
+                  'total_sum', 'contact')
 
-        read_only_fields = ('id', 'created_at')
+        read_only_fields = ('id',)
 
 
 class LoginAccountSerializer(serializers.Serializer):

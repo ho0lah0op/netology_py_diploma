@@ -33,15 +33,11 @@ class CustomValidationMixin:
 
     def is_valid_quantity(self, value, err_msg='Error'):
         """Проверяет, является ли переданное значение натуральным числом.
+
         :param value: Проверяемое значение.
         :param err_msg: Выводимое сообщение об ошибке. По умолчанию "Error".
         :rtype: None
         """
-        if not value.isdigit():
-            raise ValidationError(
-                detail='Укажите числовое значение',
-                code=status.HTTP_400_BAD_REQUEST
-            )
 
         if int(value) <= 0:
             raise ValidationError(
