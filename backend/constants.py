@@ -3,6 +3,10 @@ USERNAME_FIELD_LEN = 150
 COMPANY_FIELD_LEN = 40
 POSITION_FIELD_LEN = 40
 TYPE_FIELD_LEN = 5
+USER_TYPE_CHOICES = {
+    'shop': 'Магазин',
+    'buyer': 'Покупатель',
+}
 
 # Константы Shop
 SHOPNAME_FIELD_LEN = 50
@@ -42,11 +46,11 @@ KEY_FIELD_LEN = 64
 
 # Статусы заказа
 ORDER_STATUS = {
-    "basket": "Статус корзины",
-    "new": "Новый",
-    "confirmed": "Подтвержден",
-    "assembled": "Собран",
-    "sent": "Отправлен",
-    "delivered": "Доставлен",
-    "canceled": "Отменен",
+    'basket': 'Статус корзины',
+    'new': 'Новый',
+    'confirmed': 'Подтвержден',
+    'assembled': 'Собран',
+    'sent': 'Отправлен',
+    'delivered': 'Доставлен',
+    'canceled': 'Отменен',
 }

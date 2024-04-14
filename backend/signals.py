@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
-from django.dispatch import receiver, Signal
+from django.dispatch import Signal, receiver
 from django_rest_passwordreset.signals import reset_password_token_created
 
 from backend.constants import ORDER_STATUS
@@ -13,10 +13,10 @@ export_order = Signal()
 
 
 @receiver(reset_password_token_created)
-def password_reset_token_created(sender,
-                                 instance,
-                                 reset_password_token,
-                                 **kwargs):
+def custome_reset_password_token_created(sender,
+                                         instance,
+                                         reset_password_token,
+                                         **kwargs):
     """Отправляет письмо с токеном для сброса пароля.
 
     При создании токена для сброса пароля необходимо отправить
@@ -29,17 +29,17 @@ def password_reset_token_created(sender,
    :return: Возвращает None.
     """
     msg = EmailMultiAlternatives(
-        'Сброс пароля',
-        f'Токен сброса пароля для {reset_password_token.user}',
-        reset_password_token.key,
-        settings.EMAIL_HOST_USER,
-        [reset_password_token.user.email]
+        subject='Сброс пароля',
+        body=(f'Токен сброса пароля для {reset_password_token.user}'
+              f'\n{reset_password_token.key}'),
+        from_email=settings.EMAIL_HOST_USER,
+        to=[reset_password_token.user.email]
     )
     msg.send()
 
 
 @receiver(new_user_registered)
-def new_user_registered_signal(user_id, **kwargs):
+def custom_new_user_registered(user_id, **kwargs):
     """Функция, отправляющая письмо с подтверждением по электронной почте.
 
     При регистрации нового пользователя генерируется
@@ -58,11 +58,10 @@ def new_user_registered_signal(user_id, **kwargs):
         to=[token.user.email]
     )
     msg.send()
-    print(f'Письмо отправлено: {token.user.email}')
 
 
 @receiver(new_order)
-def new_order_signal(user_id, **kwargs):
+def custom_new_order(user_id, **kwargs):
     """
     Отправляет письмо при подтверждении заказа покупателем.
 
@@ -75,17 +74,16 @@ def new_order_signal(user_id, **kwargs):
     """
     user = User.objects.get(id=user_id)
     msg = EmailMultiAlternatives(
-        'Оформление заказа',
-        f'{user.first_name}, Спасибо за заказ!',
-        settings.EMAIL_HOST_USER,
-        [user.email]
+        subject='Оформление заказа',
+        body=f'{user.first_name}, Спасибо за заказ!',
+        from_email=settings.EMAIL_HOST_USER,
+        to=[user.email]
     )
     msg.send()
-    print(f'Заказ оформлен: {user.email}')
 
 
 @receiver(edit_order_state)
-def edit_order_state_signal(user_id, state, **kwargs):
+def custom_edit_order_state(user_id, state, **kwargs):
     """Отправляет письмо при редактировании статуса заказа.
 
     При изменении статуса заказа пользователю отправляется
@@ -98,21 +96,16 @@ def edit_order_state_signal(user_id, state, **kwargs):
     """
     user = User.objects.get(id=user_id)
     msg = EmailMultiAlternatives(
-        'Обновление статуса заказа',
-        f'Статус заказа {ORDER_STATUS.get(state)} обновлен!',
-        settings.EMAIL_HOST_USER,
-        [user.email]
+        subject='Обновление статуса заказа',
+        body=f'Статус заказа {ORDER_STATUS.get(state)} обновлен!',
+        from_email=settings.EMAIL_HOST_USER,
+        to=[user.email]
     )
     msg.send()
-    print(
-        'Статус заказа изменен: '
-        f'{ORDER_STATUS.get(state)} '
-        f'{user.email} {user}'
-    )
 
 
 @receiver(export_order)
-def export_order_signal(user_id, order_id, **kwargs):
+def custom_export_order(user_id, order_id, **kwargs):
     """Экспортирует заказ.
 
     При подтверждении заказа пользователю отправляется уведомление
@@ -125,10 +118,9 @@ def export_order_signal(user_id, order_id, **kwargs):
    """
     user = User.objects.get(id=user_id)
     msg = EmailMultiAlternatives(
-        'Подтверждение заказа',
-        f'Ваш заказ {order_id} подтвержден!',
-        settings.EMAIL_HOST_USER,
-        [user.email]
+        subject='Подтверждение заказа',
+        body=f'Ваш заказ {order_id} подтвержден!',
+        from_email=settings.EMAIL_HOST_USER,
+        to=[user.email]
     )
     msg.send()
-    print(f'Экспорт заказа: {order_id}')

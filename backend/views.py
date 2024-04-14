@@ -1,20 +1,23 @@
 import json
 
+from django.db import IntegrityError, transaction
 from django.db.models import F, Q, Sum
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
+from distutils.util import strtobool
 from djoser.views import UserViewSet as BaseUserViewSet
 from rest_framework import status
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import (
+    IsAuthenticated,
     IsAuthenticatedOrReadOnly,
-    AllowAny, IsAuthenticated,
 )
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import (
-    ViewSet,
     ModelViewSet,
-    ReadOnlyModelViewSet
+    ReadOnlyModelViewSet,
+    ViewSet
 )
 
 from backend.models import (
@@ -27,7 +30,10 @@ from backend.models import (
     Shop,
     User
 )
-from backend.permissions import IsAuthorOrReadOnly
+from backend.permissions import (
+    IsAuthorOrReadOnly,
+    IsShopOnly
+)
 from backend.serializers import (
     CategorySerializer,
     ContactSerializer,
@@ -39,6 +45,7 @@ from backend.serializers import (
     ShopSerializer,
     UserSerializer,
 )
+from backend.signals import new_order
 from backend.utils import validate_all_fields
 
 
@@ -58,12 +65,10 @@ class UserViewSet(BaseUserViewSet):
         return obj
 
     def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
         serializer = self.get_serializer(
-            instance,
+            self.get_object(),
             data=request.data,
-            partial=partial
+            partial=kwargs.pop('partial', False)
         )
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
@@ -73,12 +78,14 @@ class UserViewSet(BaseUserViewSet):
 class ContactViewSet(ViewSet):
     queryset = Contact.objects.all()
     serializer_class = ContactSerializer
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated, IsAuthorOrReadOnly)
     http_method_names = ['get', 'post', 'patch', 'put', 'delete']
 
     def list(self, request):
-        contacts = Contact.objects.filter(user=request.user)
-        serializer = ContactSerializer(contacts, many=True)
+        serializer = ContactSerializer(
+            Contact.objects.filter(user=request.user),
+            many=True
+        )
         return Response(serializer.data)
 
     def create(self, request):
@@ -102,11 +109,10 @@ class ContactViewSet(ViewSet):
 
     def destroy(self, request, pk=None):
         try:
-            contact = Contact.objects.get(
+            Contact.objects.get(
                 pk=pk,
                 user=request.user
-            )
-            contact.delete()
+            ).delete()
             return Response(
                 {
                     'Status': True,
@@ -124,12 +130,8 @@ class ContactViewSet(ViewSet):
 
     def update(self, request, pk=None):
         try:
-            contact = Contact.objects.get(
-                pk=pk,
-                user=request.user
-            )
             serializer = ContactSerializer(
-                contact,
+                Contact.objects.get(pk=pk, user=request.user),
                 data=request.data,
                 partial=True
             )
@@ -162,13 +164,13 @@ class ContactViewSet(ViewSet):
 class CategoryViewSet(ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthorOrReadOnly,)
 
 
 class ShopViewSet(ReadOnlyModelViewSet):
     queryset = Shop.objects.all()
     serializer_class = ShopSerializer
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthorOrReadOnly,)
 
 
 class ConfirmAccount(APIView):
@@ -226,7 +228,10 @@ class PartnerUpdateViewSet(ViewSet):
         if serializer.is_valid():
             serializer.save()
             return Response(
-                data={'Status': True},
+                data={
+                    'Status': True,
+                    'Message': 'Данные успешно импортированы!'
+                },
                 status=status.HTTP_201_CREATED
             )
         return Response(
@@ -255,8 +260,8 @@ class ProductInfoViewSet(ViewSet):
         ).prefetch_related(
             'product_parameters__parameter'
         ).distinct()
-        serializer = ProductInfoSerializer(queryset, many=True)
 
+        serializer = ProductInfoSerializer(queryset, many=True)
         return Response(serializer.data)
 
 
@@ -334,7 +339,7 @@ class BasketViewSet(ViewSet):
                 state='basket',
                 contact_id=get_object_or_404(
                     Contact, id=request.data.get('contact_id')
-                )
+                ).id
             )
 
             if action == 'create':
@@ -378,33 +383,218 @@ class BasketViewSet(ViewSet):
 
     def destroy(self, request, pk=None):
         items = request.data.get('items')
-        if items:
-            items = items.split(',')
-            basket, _ = Order.objects.get_or_create(
-                user_id=request.user.id,
-                state='basket'
+        if not items:
+            return Response(
+                data={
+                    'Status': False,
+                    'Errors': 'Не указаны все необходимые аргументы'
+                },
+                status=status.HTTP_400_BAD_REQUEST
             )
-            query = Q()
-            removed = False
-            for order_id in items:
-                if order_id.isdigit():
-                    query = query | Q(order_id=basket.id, id=order_id)
-                    removed = True
 
-            if removed:
-                removed_count, _ = OrderItem.objects.filter(query).delete()
-                return Response(
-                    data={
-                        'Status': True,
-                        'Message': f'Удалено объектов: {removed_count}'
-                    },
-                    status=status.HTTP_204_NO_CONTENT
-                )
+        items = items.split(',')
+        basket = self.get_or_create_basket(request)
+        if not basket:
+            return Response(
+                data={
+                    'Status': False,
+                    'Errors': 'Не удалось создать корзину'
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        query, removed = self.build_query(items, basket)
+        if not removed:
+            return Response(
+                data={
+                    'Status': True,
+                    'Message': 'Ничего не было удалено'
+                },
+                status=status.HTTP_200_OK
+            )
+
+        removed_count = self.remove_items(query)
+        if removed_count > 0:
+            basket.save()
+            return Response(
+                data={
+                    'Status': True,
+                    'Message': f'Удалено объектов: {removed_count}'
+                },
+                status=status.HTTP_204_NO_CONTENT
+            )
 
         return Response(
             data={
+                'Status': True,
+                'Message': 'Ничего не было удалено'
+            },
+            status=status.HTTP_200_OK
+        )
+
+    def get_or_create_basket(self, request):
+        try:
+            return Order.objects.get(
+                user_id=request.user.id,
+                state='basket'
+            )
+        except Order.DoesNotExist:
+            contact_id = request.data.get('contact_id')
+            get_object_or_404(Contact, id=contact_id)
+
+            return Order.objects.create(
+                user_id=request.user.id,
+                state='basket',
+                contact_id=contact_id
+            )
+
+    def build_query(self, items, basket):
+        query = Q()
+        removed = False
+        for order_id in items:
+            if order_id.isdigit():
+                query = query | Q(
+                    order_id=basket.id,
+                    id=order_id
+                )
+                removed = True
+        return query, removed
+
+    def remove_items(self, query):
+        with transaction.atomic():
+            removed_count, _ = OrderItem.objects.filter(query).delete()
+            return removed_count
+
+
+class OrderViewSet(ViewSet):
+    """Класс для получения и размещения заказов пользователями."""
+
+    permission_classes = (IsAuthenticated,)
+
+    def list(self, request):
+        order = Order.objects.filter(
+            user_id=request.user.id
+        ).exclude(
+            state='basket'
+        ).prefetch_related(
+            'ordered_items__product_info__product__category',
+            'ordered_items__product_info__product_parameters__parameter'
+        ).select_related('contact').annotate(
+            total_sum=Sum(
+                F('ordered_items__quantity')
+                * F('ordered_items__product_info__price')
+            )
+        ).distinct()
+
+        serializer = OrderSerializer(order, many=True)
+        return Response(serializer.data)
+
+    def __all_fields_isdigit(self, fields):
+        for field in fields:
+
+            if not self.request.data.get(field).isdigit():
+                raise ValidationError(
+                    detail=f'Укажите корректное значение {field}',
+                    code=status.HTTP_400_BAD_REQUEST
+                )
+
+    def create(self, request):
+        validate_all_fields(('id', 'contact'), request.data)
+        self.__all_fields_isdigit(('id', 'contact'))
+
+        try:
+            is_updated = Order.objects.filter(
+                user_id=request.user.id,
+                id=request.data.get('id')
+            ).update(
+                contact_id=request.data.get('contact'),
+                state='new'
+            )
+        except IntegrityError as err:
+            return JsonResponse(
+                {
+                    'Status': False,
+                    'Errors': f'Неправильно указаны аргументы: {err}'
+                }
+            )
+
+        if is_updated:
+            new_order.send(
+                sender=self.__class__,
+                user_id=request.user.id
+            )
+            return JsonResponse(
+                {
+                    'Status': True,
+                    'Message': 'Заказ успешно создан!'
+                }
+            )
+
+
+class PartnerOrdersViewSet(ViewSet):
+    """Класс для получения заказов поставщиками."""
+
+    permission_classes = (IsAuthenticated & IsShopOnly,)
+
+    def list(self, request):
+        order = Order.objects.filter(
+            ordered_items__product_info__shop__user_id=request.user.id
+        ).exclude(
+            state='basket'
+        ).prefetch_related(
+            'ordered_items__product_info__product__category',
+            'ordered_items__product_info__product_parameters__parameter'
+        ).select_related('contact').annotate(
+            total_sum=Sum(
+                F('ordered_items__quantity')
+                * F('ordered_items__product_info__price')
+            )
+        ).distinct()
+
+        serializer = OrderSerializer(order, many=True)
+        return Response(serializer.data)
+
+
+class PartnerStateViewSet(ViewSet):
+    """Класс для работы со статусом поставщика."""
+
+    permission_classes = (IsAuthenticated & IsShopOnly,)
+
+    def get(self, request):
+        serializer = ShopSerializer(request.user.shop)
+        return Response(serializer.data)
+
+    def create(self, request):
+        state = request.data.get('state')
+        if state is not None:
+            try:
+                shop = Shop.objects.get(user_id=request.user.id)
+                shop.state = strtobool(state)
+                shop.save()
+                return JsonResponse(
+                    {
+                        'Status': True,
+                        'Message': 'Статус успешно изменён!'
+                    }
+                )
+            except Shop.DoesNotExist:
+                return JsonResponse(
+                    data={
+                        'Status': False,
+                        'Errors': 'Магазин не найден'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            except ValueError as error:
+                return JsonResponse(
+                    {
+                        'Status': False,
+                        'Errors': str(error)
+                    }
+                )
+
+        return JsonResponse(
+            {
                 'Status': False,
                 'Errors': 'Не указаны все необходимые аргументы'
-            },
-            status=status.HTTP_400_BAD_REQUEST
+            }
         )

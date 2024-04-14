@@ -1,17 +1,24 @@
 import requests
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
-from django.core.exceptions import ValidationError
-from django.core.validators import URLValidator
+from django.core.validators import (
+    URLValidator,
+    ValidationError
+)
 from django.db import transaction
-from rest_framework import serializers, status
+from rest_framework import (
+    serializers,
+    status
+)
 from rest_framework.authtoken.models import Token
-from yaml import load as load_yaml, Loader
+from yaml import (
+    load as load_yaml,
+    Loader
+)
 
 from backend.mixins import CustomValidationMixin
 from backend.models import (
     Category,
-    ConfirmEmailToken,
     Contact,
     Order,
     OrderItem,
@@ -20,7 +27,7 @@ from backend.models import (
     ProductInfo,
     ProductParameter,
     Shop,
-    User,
+    User
 )
 from backend.signals import new_user_registered
 from backend.utils import validate_all_fields
@@ -40,8 +47,7 @@ class ContactSerializer(CustomValidationMixin,
     def validate_city(self, value):
         self.is_alpha(
             value,
-            err_msg=('Название города может содержать '
-                     'только буквы и дефис')
+            err_msg='Название города может содержать только буквы и дефис'
         )
         return value
 
@@ -64,9 +70,9 @@ class UserSerializer(CustomValidationMixin,
     def create(self, validated_data):
         try:
             validate_password(validated_data.get('password'))
-        except ValidationError as password_error:
+        except ValidationError as err:
             raise serializers.ValidationError(
-                {'password': password_error.messages}
+                {'password': err.messages}
             )
 
         with transaction.atomic():
@@ -89,11 +95,10 @@ class UserSerializer(CustomValidationMixin,
         if 'password' in validated_data:
             try:
                 validate_password(validated_data['password'])
-            except ValidationError as password_error:
+            except ValidationError as err:
                 raise serializers.ValidationError(
-                    {'password': password_error.messages}
+                    {'password': err.messages}
                 )
-
             instance.set_password(
                 validated_data['password']
             )
@@ -145,13 +150,6 @@ class CategorySerializer(serializers.ModelSerializer):
         read_only_fields = ('id',)
 
         def validate_name(self, value):
-            """Проверяет существование категории по имени.
-
-            :param str value: Название категории.
-            :return: Название категории, если она существует.
-            :raises serializers.ValidationError: Если категория
-            с указанным именем не существует.
-            """
             if not Category.objects.filter(name=value).exists():
                 raise serializers.ValidationError(
                     'Категория с таким названием не существует.'
@@ -174,25 +172,13 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = ('name', 'category',)
 
     def validate_name(self, value):
-        """Проверяет существование продукта.
-
-         Проверяет существование продукта с таким
-         же именем в данной категории.
-
-         :param str value: Название продукта.
-         :return: Название продукта, если оно уникально в рамках категории.
-         :raises serializers.ValidationError: Если продукт с указанным
-         именем уже существует в данной категории.
-        """
-
-        category = self.context.get('category')
         if Product.objects.filter(
                 name=value,
-                category=category
+                category=self.context.get('category')
         ).exists():
             raise serializers.ValidationError(
-                'Продукт с таким же названием '
-                'уже существует в данной категории.'
+                ('Продукт с таким же названием '
+                 'уже существует в данной категории.')
             )
         return value
 
@@ -236,9 +222,6 @@ class OrderItemSerializer(CustomValidationMixin,
         model = OrderItem
         fields = ('id', 'product_info', 'quantity', 'order',)
         read_only_fields = ('id',)
-        extra_kwargs = {
-            'order': {'write_only': True}
-        }
         validators = [
             serializers.UniqueTogetherValidator(
                 queryset=OrderItem.objects.all(),
@@ -246,6 +229,9 @@ class OrderItemSerializer(CustomValidationMixin,
                 message='Позиция уже существует в корзине'
             )
         ]
+        extra_kwargs = {
+            'order': {'write_only': True}
+        }
 
     def validate_quantity(self, value):
         self.is_valid_quantity(
@@ -316,23 +302,10 @@ class PartnerUpdateSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         user = self.context.get('request').user
-        if not user.is_authenticated:
-            raise serializers.ValidationError(
-                code=status.HTTP_403_FORBIDDEN,
-                detail='Требуется войти в систему'
-            )
-
-        if user.type != 'shop':
-            raise serializers.ValidationError(
-                code=status.HTTP_403_FORBIDDEN,
-                detail='Только для магазинов'
-            )
-
         data = load_yaml(
             requests.get(validated_data.get('url')).content,
             Loader=Loader
         )
-
         shop, _ = Shop.objects.get_or_create(
             name=data.get('shop'),
             user=user
@@ -351,7 +324,6 @@ class PartnerUpdateSerializer(serializers.Serializer):
                 name=item.get('name'),
                 category_id=item.get('category')
             )
-
             product_info = ProductInfo.objects.create(
                 product=product,
                 external_id=item.get('id'),

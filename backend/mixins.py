@@ -6,8 +6,14 @@ from rest_framework.exceptions import ValidationError
 
 
 class TimeStampMixin(models.Model):
-    created_at = models.DateTimeField("Дата создания", auto_now_add=True)
-    updated_at = models.DateTimeField("Дата обновления", auto_now=True)
+    created_at = models.DateTimeField(
+        'Дата создания',
+        auto_now_add=True
+    )
+    updated_at = models.DateTimeField(
+        'Дата обновления',
+        auto_now=True
+    )
 
     class Meta:
         abstract = True
@@ -38,7 +44,6 @@ class CustomValidationMixin:
         :param err_msg: Выводимое сообщение об ошибке. По умолчанию "Error".
         :rtype: None
         """
-
         if int(value) <= 0:
             raise ValidationError(
                 detail=err_msg,
@@ -51,7 +56,6 @@ class CustomValidationMixin:
             err_msg='Стоимость должна быть больше 0.'
     ):
         """Проверяет, является ли передаваемое значение правильной ценой."""
-
         try:
             price = float(data)
         except ValueError:
