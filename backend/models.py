@@ -349,6 +349,7 @@ class Contact(models.Model):
     phone = models.CharField(
         'Телефон',
         max_length=PHONE_FIELD_LEN,
+        unique=True,
         validators=[PhoneNumberValidator()]
     )
 

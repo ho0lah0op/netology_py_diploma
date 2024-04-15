@@ -114,10 +114,11 @@ class ContactViewSet(ViewSet):
                 user=request.user
             ).delete()
             return Response(
-                {
+                data={
                     'Status': True,
                     'Message': 'Контакт удалён'
-                }
+                },
+                status=status.HTTP_204_NO_CONTENT
             )
         except Contact.DoesNotExist:
             return Response(
@@ -353,6 +354,15 @@ class BasketViewSet(ViewSet):
                 return Response(
                     data=result,
                     status=status.HTTP_400_BAD_REQUEST
+                )
+
+            if action == 'create':
+                return Response(
+                    data={
+                        'Status': True,
+                        'Message': result
+                    },
+                    status=status.HTTP_201_CREATED
                 )
             return Response(
                 data={
