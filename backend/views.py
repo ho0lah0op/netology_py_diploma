@@ -360,14 +360,14 @@ class BasketViewSet(ViewSet):
                 return Response(
                     data={
                         'Status': True,
-                        'Message': result
+                        'Message': f'Добавлено {result} позиции'
                     },
                     status=status.HTTP_201_CREATED
                 )
             return Response(
                 data={
                     'Status': True,
-                    'Message': result
+                    'Message': f'Обновлено {result} позиции'
                 },
                 status=status.HTTP_200_OK
             )
@@ -426,6 +426,10 @@ class BasketViewSet(ViewSet):
         removed_count = self.remove_items(query)
         if removed_count > 0:
             basket.save()
+
+            # Если в корзине не остались позиции, она удаляется.
+            if not basket.ordered_items.exists():
+                basket.delete()
             return Response(
                 data={
                     'Status': True,
@@ -522,10 +526,11 @@ class OrderViewSet(ViewSet):
             )
         except IntegrityError as err:
             return JsonResponse(
-                {
+                data={
                     'Status': False,
                     'Errors': f'Неправильно указаны аргументы: {err}'
-                }
+                },
+                status=status.HTTP_400_BAD_REQUEST
             )
 
         if is_updated:
@@ -534,11 +539,19 @@ class OrderViewSet(ViewSet):
                 user_id=request.user.id
             )
             return JsonResponse(
-                {
+                data={
                     'Status': True,
                     'Message': 'Заказ успешно создан!'
-                }
+                },
+                status=status.HTTP_201_CREATED
             )
+        return JsonResponse(
+            data={
+                'Status': False,
+                'Message': 'Корзина пуста'
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
 
 class PartnerOrdersViewSet(ViewSet):

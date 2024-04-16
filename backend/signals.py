@@ -51,8 +51,8 @@ def custom_new_user_registered(user_id, **kwargs):
     """
     token, _ = ConfirmEmailToken.objects.get_or_create(user_id=user_id)
     msg = EmailMultiAlternatives(
-        subject='Подтверждение пароля',
-        body=(f'Токен сброса пароля для {token.user.email}'
+        subject='Подтверждение регистрации',
+        body=(f'Токен подтверждения регистрации: {token.user.email}'
               f'\n{token.key}'),
         from_email=settings.EMAIL_HOST_USER,
         to=[token.user.email]
