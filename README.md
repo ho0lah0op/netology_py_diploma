@@ -90,6 +90,16 @@ sudo docker compose exec web python manage.py migrate
 sudo docker compose exec web python manage.py createsuperuser
 ```
 
+10.
+
+```
+Если необходимо реализовать отправку писем, раскомментируйте следующие строки в файле `settings.py`:
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+
+# Эту строку закомментируйте
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+```
+
 ---
 
 ## Примеры запросов и ответов:
@@ -294,6 +304,51 @@ http://127.0.0.1:8000/api/v1/user/contact/
 {
     "Status": true,
     "Message": "Контакт создан"
+}
+```
+
+Запрос:
+
+```
+http:///127.0.0.1:8000/api/v1/order/confirm/
+```
+
+Ответ:
+
+```
+{
+    "Status": true,
+    "Message": "Заказ успешно подтвержден"
+}
+```
+
+Запрос:
+
+```
+http:///127.0.0.1:8000/api/v1/order/assemble/
+```
+
+Ответ:
+
+```
+{
+    "Status": true,
+    "Message": "Заказ успешно переведен в состояние assembled"
+}
+```
+
+Запрос:
+
+```
+http://127.0.0.1:8000/api/v1/order/cancel/
+```
+
+Ответ:
+
+```
+{
+    "Status": false,
+    "Errors": "Невозможно выполнить операцию, так как заказ находится в состоянии delivered"
 }
 ```
 
