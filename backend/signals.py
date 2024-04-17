@@ -154,7 +154,7 @@ def custom_edit_order_state(sender, user_id, order_id, state, **kwargs):
     user = User.objects.get(id=user_id)
     msg = EmailMultiAlternatives(
         subject='Обновление статуса заказа',
-        body=f'Статус заказа {ORDER_STATUS.get(state)} обновлен!',
+        body=f'Статус заказа обновлен на "{ORDER_STATUS.get(state)}"!',
         from_email=settings.EMAIL_HOST_USER,
         to=[user.email]
     )
