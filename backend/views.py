@@ -1,5 +1,6 @@
 import json
 
+from django.contrib.auth.tokens import default_token_generator
 from django.db import IntegrityError, transaction
 from django.db.models import F, Q, Sum
 from django.http import JsonResponse
@@ -45,7 +46,7 @@ from backend.serializers import (
     ShopSerializer,
     UserSerializer,
 )
-from backend.signals import new_order
+from backend.signals import edit_order_state, new_order, order_confirmed
 from backend.utils import validate_all_fields
 
 
@@ -551,6 +552,158 @@ class OrderViewSet(ViewSet):
                 'Message': 'Корзина пуста'
             },
             status=status.HTTP_400_BAD_REQUEST
+        )
+
+    def confirm_order(self, request):
+        validate_all_fields(
+            ('email', 'token', 'order_id', 'contact_id'),
+            request.data
+        )
+        user = User.objects.filter(
+            email=request.data.get('email')
+        ).first()
+        if not user:
+            return JsonResponse(
+                data={
+                    'Status': False,
+                    'Errors': 'Пользователь не найден'
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if not default_token_generator.check_token(
+                user, request.data.get('token')
+        ):
+            return JsonResponse(
+                data={
+                    'Status': False,
+                    'Errors': 'Неправильный токен подтверждения'
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        try:
+            order = Order.objects.get(
+                id=request.data.get('order_id'),
+                user=user,
+                state='new'
+            )
+            contact = get_object_or_404(
+                Contact,
+                id=request.data.get('contact_id')
+            )
+
+            if order.state != 'new':
+                return JsonResponse(
+                    data={
+                        'Status': False,
+                        'Errors': ('Невозможно подтвердить '
+                                   'заказ с текущим статусом')
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            order.state = 'confirmed'
+            order.save()
+            order_confirmed.send(
+                sender=self.__class__,
+                user_id=user.id,
+                order_id=order.id,
+                contact=contact
+            )
+
+            return JsonResponse(
+                data={
+                    'Status': True,
+                    'Message': 'Заказ успешно подтвержден'
+                },
+                status=status.HTTP_200_OK
+            )
+        except Order.DoesNotExist:
+            return JsonResponse(
+                data={
+                    'Status': False,
+                    'Errors': 'Заказ уже подтвержден'
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+    def update_order_state(self, order_id, user, expected_state, new_state):
+        try:
+            order = Order.objects.get(id=order_id, user=user)
+            if order.state != expected_state:
+                return JsonResponse(
+                    data={
+                        'Status': False,
+                        'Errors': ('Невозможно выполнить операцию, '
+                                   'так как заказ находится в '
+                                   f'состоянии {order.state}')
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            order.state = new_state
+            order.save()
+
+            edit_order_state.send(
+                sender=self.__class__,
+                user_id=user.id,
+                order_id=order_id,
+                state=new_state
+            )
+
+            return JsonResponse(
+                data={
+                    'Status': True,
+                    'Message': ('Заказ успешно переведен '
+                                f'в состояние {new_state}')
+                },
+                status=status.HTTP_200_OK
+            )
+        except Order.DoesNotExist:
+            return JsonResponse(
+                data={
+                    'Status': False,
+                    'Errors': 'Заказ не найден'
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+    def assemble_order(self, request):
+        validate_all_fields(('order_id',), request.data)
+        return self.update_order_state(
+            request.data.get('order_id'),
+            request.user,
+            'confirmed',
+            'assembled'
+        )
+
+    def send_order(self, request):
+        validate_all_fields(('order_id',), request.data)
+        order_id = request.data.get('order_id')
+
+        return self.update_order_state(
+            request.data.get('order_id'),
+            request.user,
+            'assembled',
+            'sent'
+        )
+
+    def deliver_order(self, request):
+        validate_all_fields(('order_id',), request.data)
+        return self.update_order_state(
+            request.data.get('order_id'),
+            request.user,
+            'sent',
+            'delivered'
+        )
+
+    def cancel_order(self, request):
+        validate_all_fields(('order_id',), request.data)
+        return self.update_order_state(
+            request.data.get('order_id'),
+            request.user,
+            'new',
+            'canceled'
         )
 
 

@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
+from django.contrib.auth.tokens import default_token_generator
 from django.dispatch import Signal, receiver
 from django_rest_passwordreset.signals import reset_password_token_created
 
@@ -9,7 +10,63 @@ from backend.models import ConfirmEmailToken, User
 new_user_registered = Signal()
 new_order = Signal()
 edit_order_state = Signal()
-export_order = Signal()
+order_confirmed = Signal()
+
+
+@receiver(new_order)
+def send_order_confirmation_email(sender, user_id, **kwargs):
+    """Отправляет письмо с токеном подтверждения заказа.
+
+    Сигнал отправляется при создании нового заказа пользователем.
+    Пользователю отправляется письмо с токеном подтверждения заказа.
+
+    :param sender: Класс представления, который отправил сигнал.
+    :param user_id: Идентификатор пользователя, для которого создан заказ.
+    :param kwargs: Дополнительные аргументы.
+    :return: Возвращает None.
+    """
+    user = User.objects.get(id=user_id)
+    token = default_token_generator.make_token(user)
+    email = EmailMultiAlternatives(
+        subject='Подтверждение заказа',
+        body=('Ваш заказ ожидает подтверждения.\n'
+              f'Ваш токен: {token}'),
+        from_email=settings.EMAIL_HOST_USER,
+        to=[user.email]
+    )
+    email.send()
+
+
+@receiver(order_confirmed)
+def send_order_confirmed(sender, user_id, order_id, contact, **kwargs):
+    """Отправляет письмо с подтверждением заказа.
+
+    Сигнал отправляется при подтверждении заказа.
+    Пользователю отправляется письмо с подтверждением заказа,
+    содержащее информацию о заказе и контактных данных.
+
+    :param sender: Класс представления, который отправил сигнал.
+    :param user_id: Идентификатор пользователя, для которого создан заказ.
+    :param order_id: Идентификатор подтвержденного заказа.
+    :param contact: Контактные данные пользователя.
+    :param kwargs: Дополнительные аргументы.
+    :return: Возвращает None.
+    """
+    user = User.objects.get(id=user_id)
+    body_content = (
+        f'{user.first_name}, Спасибо за заказ! '
+        f'Ваш заказ №{order_id} подтвержден!'
+        f'\nАдрес: г.{contact.city}, ул.{contact.street} '
+        f'{contact.house}\nНомер телефона: {contact.phone}'
+    )
+
+    msg = EmailMultiAlternatives(
+        subject='Ваш заказ подтвержден',
+        body=body_content,
+        from_email=settings.EMAIL_HOST_USER,
+        to=[user.email]
+    )
+    msg.send()
 
 
 @receiver(reset_password_token_created)
@@ -75,7 +132,7 @@ def custom_new_order(user_id, **kwargs):
     user = User.objects.get(id=user_id)
     msg = EmailMultiAlternatives(
         subject='Оформление заказа',
-        body=f'{user.first_name}, Спасибо за заказ!',
+        body=f'{user.first_name}, Ваш заказ ожидает подтверждения!',
         from_email=settings.EMAIL_HOST_USER,
         to=[user.email]
     )
@@ -83,7 +140,7 @@ def custom_new_order(user_id, **kwargs):
 
 
 @receiver(edit_order_state)
-def custom_edit_order_state(user_id, state, **kwargs):
+def custom_edit_order_state(sender, user_id, order_id, state, **kwargs):
     """Отправляет письмо при редактировании статуса заказа.
 
     При изменении статуса заказа пользователю отправляется
@@ -98,28 +155,6 @@ def custom_edit_order_state(user_id, state, **kwargs):
     msg = EmailMultiAlternatives(
         subject='Обновление статуса заказа',
         body=f'Статус заказа {ORDER_STATUS.get(state)} обновлен!',
-        from_email=settings.EMAIL_HOST_USER,
-        to=[user.email]
-    )
-    msg.send()
-
-
-@receiver(export_order)
-def custom_export_order(user_id, order_id, **kwargs):
-    """Экспортирует заказ.
-
-    При подтверждении заказа пользователю отправляется уведомление
-    по электронной почте о подтверждении его заказа.
-
-   :param int user_id: Идентификатор пользователя, чей заказ был подтвержден.
-   :param int order_id: Идентификатор заказа, который был подтвержден.
-   :param kwargs: Дополнительные аргументы.
-   :return: Возвращает None.
-   """
-    user = User.objects.get(id=user_id)
-    msg = EmailMultiAlternatives(
-        subject='Подтверждение заказа',
-        body=f'Ваш заказ {order_id} подтвержден!',
         from_email=settings.EMAIL_HOST_USER,
         to=[user.email]
     )

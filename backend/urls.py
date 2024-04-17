@@ -107,6 +107,27 @@ urlpatterns = [
         name='password-reset-confirm'
     ),
     path(
+        'order/confirm/',
+        OrderViewSet.as_view({'post': 'confirm_order'}),
+        name='confirm_order'
+    ),
+    path('order/assemble/',
+         OrderViewSet.as_view({'post': 'assemble_order'}),
+         name='assemble-order'
+         ),
+    path('order/send/',
+         OrderViewSet.as_view({'post': 'send_order'}),
+         name='send-order'
+         ),
+    path('order/deliver/',
+         OrderViewSet.as_view({'post': 'deliver_order'}),
+         name='deliver-order'
+         ),
+    path('order/cancel/',
+         OrderViewSet.as_view({'post': 'cancel_order'}),
+         name='cancel-order'
+         ),
+    path(
         'products',
         ProductInfoViewSet.as_view({'get': 'list'}),
         name='shops'
