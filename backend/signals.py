@@ -5,7 +5,7 @@ from django.dispatch import Signal, receiver
 from django_rest_passwordreset.signals import reset_password_token_created
 
 from backend.constants import ORDER_STATUS
-from backend.models import ConfirmEmailToken, User
+from backend.models import ConfirmEmailToken, Contact, User
 
 new_user_registered = Signal()
 new_order = Signal()
@@ -38,7 +38,7 @@ def send_order_confirmation_email(sender, user_id, **kwargs):
 
 
 @receiver(order_confirmed)
-def send_order_confirmed(sender, user_id, order_id, contact, **kwargs):
+def send_order_confirmed(sender, user_id, order_id, contact_id, **kwargs):
     """Отправляет письмо с подтверждением заказа.
 
     Сигнал отправляется при подтверждении заказа.
@@ -53,11 +53,12 @@ def send_order_confirmed(sender, user_id, order_id, contact, **kwargs):
     :return: Возвращает None.
     """
     user = User.objects.get(id=user_id)
+    contact = Contact.objects.get(id=contact_id)
     body_content = (
         f'{user.first_name}, Спасибо за заказ! '
-        f'Ваш заказ №{order_id} подтвержден!'
-        f'\nАдрес: г.{contact.city}, ул.{contact.street} '
-        f'{contact.house}\nНомер телефона: {contact.phone}'
+        f'Ваш заказ №{order_id} подтвержден! '
+        f'Адрес: г.{contact.city}, ул.{contact.street} '
+        f'{contact.house} Номер телефона: {contact.phone}'
     )
 
     msg = EmailMultiAlternatives(

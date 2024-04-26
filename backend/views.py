@@ -46,7 +46,12 @@ from backend.serializers import (
     ShopSerializer,
     UserSerializer,
 )
-from backend.signals import edit_order_state, new_order, order_confirmed
+from backend.signals import edit_order_state
+from backend.tasks import (
+    confirm_order_async,
+    create_order_async,
+    update_order_state_async
+)
 from backend.utils import validate_all_fields
 
 
@@ -513,6 +518,7 @@ class OrderViewSet(ViewSet):
                     code=status.HTTP_400_BAD_REQUEST
                 )
 
+    @transaction.atomic
     def create(self, request):
         validate_all_fields(('id', 'contact'), request.data)
         self.__all_fields_isdigit(('id', 'contact'))
@@ -535,17 +541,17 @@ class OrderViewSet(ViewSet):
             )
 
         if is_updated:
-            new_order.send(
-                sender=self.__class__,
-                user_id=request.user.id
-            )
-            return JsonResponse(
-                data={
-                    'Status': True,
-                    'Message': 'Заказ успешно создан!'
-                },
+            result, message = create_order_async.delay(
+                sender=self.__class__.__name__,
+                user_id=request.user.id,
+            ).get()
+
+            return self.__result_handler(
+                result,
+                message,
                 status=status.HTTP_201_CREATED
             )
+
         return JsonResponse(
             data={
                 'Status': False,
@@ -591,120 +597,95 @@ class OrderViewSet(ViewSet):
                 Contact,
                 id=request.data.get('contact_id')
             )
-
-            if order.state != 'new':
-                return JsonResponse(
-                    data={
-                        'Status': False,
-                        'Errors': ('Невозможно подтвердить '
-                                   'заказ с текущим статусом')
-                    },
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            order.state = 'confirmed'
-            order.save()
-            order_confirmed.send(
-                sender=self.__class__,
-                user_id=user.id,
-                order_id=order.id,
-                contact=contact
-            )
-
-            return JsonResponse(
-                data={
-                    'Status': True,
-                    'Message': 'Заказ успешно подтвержден'
-                },
-                status=status.HTTP_200_OK
-            )
         except Order.DoesNotExist:
             return JsonResponse(
                 data={
                     'Status': False,
-                    'Errors': 'Заказ уже подтвержден'
+                    'Errors': 'Заказ уже подтвержден или отменён'
                 },
-                status=status.HTTP_404_NOT_FOUND
+                status=status.HTTP_400_BAD_REQUEST
             )
 
-    def update_order_state(self, order_id, user, expected_state, new_state):
-        try:
-            order = Order.objects.get(id=order_id, user=user)
-            if order.state != expected_state:
-                return JsonResponse(
-                    data={
-                        'Status': False,
-                        'Errors': ('Невозможно выполнить операцию, '
-                                   'так как заказ находится в '
-                                   f'состоянии {order.state}')
-                    },
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            order.state = new_state
-            order.save()
-
-            edit_order_state.send(
-                sender=self.__class__,
-                user_id=user.id,
-                order_id=order_id,
-                state=new_state
-            )
-
-            return JsonResponse(
-                data={
-                    'Status': True,
-                    'Message': ('Заказ успешно переведен '
-                                f'в состояние {new_state}')
-                },
-                status=status.HTTP_200_OK
-            )
-        except Order.DoesNotExist:
+        if order.state != 'new':
             return JsonResponse(
                 data={
                     'Status': False,
-                    'Errors': 'Заказ не найден'
+                    'Errors': ('Невозможно подтвердить '
+                               'заказ с текущим статусом')
                 },
-                status=status.HTTP_404_NOT_FOUND
+                status=status.HTTP_400_BAD_REQUEST
             )
+
+        order.state = 'confirmed'
+        order.save()
+        result, message = confirm_order_async.delay(
+            sender=self.__class__.__name__,
+            user_id=user.id,
+            order_id=order.id,
+            contact_id=contact.id
+        ).get()
+
+        return self.__result_handler(result, message)
+
+    def __result_handler(self, result, msg, status=status.HTTP_200_OK):
+        if result:
+            return JsonResponse(
+                data={'Status': True, 'Message': msg},
+                status=status
+            )
+
+        return JsonResponse(
+            data={'Status': False, 'Errors': msg},
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
     def assemble_order(self, request):
         validate_all_fields(('order_id',), request.data)
-        return self.update_order_state(
+        result, message = update_order_state_async.delay(
+            self.__class__.__name__,
             request.data.get('order_id'),
-            request.user,
+            request.user.id,
             'confirmed',
             'assembled'
-        )
+        ).get()
+
+        return self.__result_handler(result, message)
 
     def send_order(self, request):
         validate_all_fields(('order_id',), request.data)
-        order_id = request.data.get('order_id')
-
-        return self.update_order_state(
+        result, message = update_order_state_async.delay(
+            self.__class__.__name__,
             request.data.get('order_id'),
-            request.user,
+            request.user.id,
             'assembled',
             'sent'
-        )
+        ).get()
+
+        return self.__result_handler(result, message)
 
     def deliver_order(self, request):
         validate_all_fields(('order_id',), request.data)
-        return self.update_order_state(
+        result, message = update_order_state_async.delay(
+            self.__class__.__name__,
             request.data.get('order_id'),
-            request.user,
+            request.user.id,
             'sent',
             'delivered'
-        )
+        ).get()
+
+        return self.__result_handler(result, message)
 
     def cancel_order(self, request):
         validate_all_fields(('order_id',), request.data)
-        return self.update_order_state(
+        result, message = update_order_state_async.delay(
+            self.__class__.__name__,
             request.data.get('order_id'),
-            request.user,
+            request.user.id,
             'new',
             'canceled'
-        )
+        ).get()
+
+        return self.__result_handler(result, message)
 
 
 class PartnerOrdersViewSet(ViewSet):
