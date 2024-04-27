@@ -9,6 +9,8 @@ router_v1 = DefaultRouter()
 urlpatterns = [
     path('', views.home_page, name='index'),
     path('', include('social_django.urls', namespace='social')),
+    path('jet/', include('jet.urls', 'jet')),
+    path('jet/dashboard/', include('jet.dashboard.urls', 'jet-dashboard')),
     path('admin/', admin.site.urls),
     path('api/v1/', include('backend.urls')),
 ]
