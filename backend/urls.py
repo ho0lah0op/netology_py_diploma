@@ -4,6 +4,7 @@ from django_rest_passwordreset.views import (
     reset_password_confirm
 )
 from rest_framework.routers import SimpleRouter
+
 from backend.views import (
     BasketViewSet,
     CategoryViewSet,
@@ -18,6 +19,7 @@ from backend.views import (
     ShopViewSet,
     UserViewSet
 )
+from backend.spectacular import SpectacularAPIView
 
 app_name = 'backend'
 
@@ -132,6 +134,7 @@ urlpatterns = [
         ProductInfoViewSet.as_view({'get': 'list'}),
         name='shops'
     ),
+    path('schema/', SpectacularAPIView.as_view(), name='schema'),
     path('user/', include('djoser.urls')),
     path('auth/', include('djoser.urls.authtoken')),
     path('', include(router_v1.urls)),

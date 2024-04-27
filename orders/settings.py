@@ -25,6 +25,8 @@ INSTALLED_APPS = [
     'django_rest_passwordreset',
     'djoser',
     'celery',
+    'drf_spectacular',
+    'drf_spectacular_sidecar',
 
     # local app
     'backend',
@@ -142,6 +144,20 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',
     ],
+
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Автоматизация закупок',
+    'DESCRIPTION': ('Проект по автоматизации закупок в розничной сети '
+                    'создан с целью оптимизации процесса заказа и '
+                    'управления товарами.'),
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'SWAGGER_UI_DIST': 'SIDECAR',
+    'SWAGGER_UI_FAVICON_HREF': 'SIDECAR',
+    'REDOC_DIST': 'SIDECAR',
 }
 
 CELERY_BROKER_URL = 'redis://localhost:6379'
