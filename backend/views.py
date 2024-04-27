@@ -46,7 +46,6 @@ from backend.serializers import (
     ShopSerializer,
     UserSerializer,
 )
-from backend.signals import edit_order_state
 from backend.tasks import (
     confirm_order_async,
     create_order_async,
@@ -171,13 +170,13 @@ class ContactViewSet(ViewSet):
 class CategoryViewSet(ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    permission_classes = (IsAuthorOrReadOnly,)
+    permission_classes = (IsAuthenticatedOrReadOnly,)
 
 
 class ShopViewSet(ReadOnlyModelViewSet):
     queryset = Shop.objects.all()
     serializer_class = ShopSerializer
-    permission_classes = (IsAuthorOrReadOnly,)
+    permission_classes = (IsAuthenticatedOrReadOnly,)
 
 
 class ConfirmAccount(APIView):
@@ -194,7 +193,12 @@ class ConfirmAccount(APIView):
             token.user.is_active = True
             token.user.save()
             token.delete()
-            return JsonResponse({'Status': True})
+            return JsonResponse(
+                {
+                    'Status': True,
+                    'Messages': 'Ваш аккаунт подтвержден'
+                }
+            )
 
         return JsonResponse(
             {
