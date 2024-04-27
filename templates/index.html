@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Страница авторизации</title>
+  <style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f4f4f4;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+    }
+
+    .container {
+        text-align: center;
+    }
+
+    h1 {
+        color: #333;
+    }
+
+    .login-button {
+        display: inline-block;
+        padding: 10px 20px;
+        background-color: #4285f4;
+        color: #fff;
+        text-decoration: none;
+        border-radius: 5px;
+        transition: background-color 0.3s ease;
+    }
+
+    .login-button:hover {
+        background-color: #357ae8;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Добро пожаловать на сайт "Автоматизация закупок"</h1>
+  <p>Пожалуйста, войдите, чтобы продолжить:</p>
+  <a href="{% url 'social:begin' 'google-oauth2' %}?next={{ request.path }}" class="login-button">
+    Войти через Google
+  </a>
+</div>
+</body>
+</html>

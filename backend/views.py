@@ -4,7 +4,7 @@ from django.contrib.auth.tokens import default_token_generator
 from django.db import IntegrityError, transaction
 from django.db.models import F, Q, Sum
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, render
 from distutils.util import strtobool
 from djoser.views import UserViewSet as BaseUserViewSet
 from rest_framework import status
@@ -759,3 +759,7 @@ class PartnerStateViewSet(ViewSet):
                 'Errors': 'Не указаны все необходимые аргументы'
             }
         )
+
+
+def home_page(request):
+    return render(request, 'index.html')
