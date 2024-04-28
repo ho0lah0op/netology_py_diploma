@@ -14,13 +14,14 @@ from backend.signals import (
     order_confirmed
 )
 
+
 @shared_task
 def create_order_async(sender, user_id):
     try:
         new_order.send(sender=sender, user_id=user_id)
     except IntegrityError as err:
         return False, f'Неправильно указаны аргументы: {err}'
-    return True, f'Заказ успешно создан!'
+    return True, 'Заказ успешно создан!'
 
 
 @shared_task

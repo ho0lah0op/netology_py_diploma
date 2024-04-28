@@ -8,13 +8,45 @@ from backend import views
 
 router_v1 = DefaultRouter()
 
+
+def trigger_error(request):
+    return 1 / 0
+
+
 urlpatterns = [
     path('', views.home_page, name='index'),
-    path('', include('social_django.urls', namespace='social')),
-    path('jet/', include('jet.urls', 'jet')),
-    path('jet/dashboard/', include('jet.dashboard.urls', 'jet-dashboard')),
-    path('user_image/<int:pk>/', views.upload_user_image, name='user_image'),
-    path('product_image/<int:pk>/', views.upload_product_image, name='product_image'),
+    path(
+        '',
+        include(
+            'social_django.urls',
+            namespace='social'
+        )
+    ),
+    path('sentry-debug/', trigger_error),
+    path(
+        'jet/',
+        include(
+            'jet.urls',
+            'jet'
+        )
+    ),
+    path(
+        'jet/dashboard/',
+        include(
+            'jet.dashboard.urls',
+            'jet-dashboard'
+        )
+    ),
+    path(
+        'user_image/<int:pk>/',
+        views.upload_user_image,
+        name='user_image'
+    ),
+    path(
+        'product_image/<int:pk>/',
+        views.upload_product_image,
+        name='product_image'
+    ),
     path('admin/', admin.site.urls),
     path('api/v1/', include('backend.urls')),
 ]
