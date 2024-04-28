@@ -55,12 +55,13 @@ class ContactSerializer(CustomValidationMixin,
 class UserSerializer(CustomValidationMixin,
                      serializers.ModelSerializer):
     contacts = ContactSerializer(read_only=True, many=True)
+    avatar = serializers.ImageField(required=False)
 
     class Meta:
         model = User
         fields = (
             'id', 'first_name', 'last_name', 'email', 'company',
-            'position', 'type', 'contacts', 'password'
+            'position', 'type', 'contacts', 'password', 'avatar'
         )
         read_only_fields = ('id',)
         extra_kwargs = {
@@ -169,7 +170,7 @@ class ProductSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Product
-        fields = ('name', 'category',)
+        fields = ('name', 'category', 'image')
 
     def validate_name(self, value):
         if Product.objects.filter(

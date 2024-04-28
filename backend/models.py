@@ -118,6 +118,12 @@ class User(AbstractUser, TimeStampMixin):
         max_length=TYPE_FIELD_LEN,
         default='buyer',
     )
+    avatar = models.ImageField(
+        'Аватар',
+        upload_to='user_avatars/',
+        blank=True,
+        null=True,
+    )
 
     class Meta:
         verbose_name = 'Пользователь'
@@ -189,6 +195,12 @@ class Product(TimeStampMixin):
         on_delete=models.CASCADE,
         related_name='products',
         verbose_name='Категория',
+    )
+    image = models.ImageField(
+        'Изображение',
+        upload_to='product_images/',
+        blank=True,
+        null=True,
     )
 
     class Meta:

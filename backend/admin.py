@@ -31,6 +31,11 @@ class UserAdmin(BaseUserAdmin):
     list_filter = ('type', 'position', 'company')
     fieldsets = (
         (
+            'Картинка', {
+                'fields': ('avatar',)
+            }
+        ),
+        (
             None, {
                 'fields': ('username', 'first_name', 'last_name', 'email')
             }
@@ -70,8 +75,9 @@ class ShopAdmin(admin.ModelAdmin):
 class ProductAdmin(admin.ModelAdmin):
     list_display = ('name', 'category', 'created_at', 'updated_at')
     list_filter = ('name', 'category')
-    fields = ('name', 'category', 'created_at', 'updated_at')
+    fields = ('name', 'category', 'image', 'created_at', 'updated_at')
     search_fields = ('name', 'category')
+    readonly_fields = ('created_at', 'updated_at')
 
 
 @admin.register(Category)
@@ -146,3 +152,4 @@ class ConfirmEmailAdmin(admin.ModelAdmin):
     list_filter = ('user',)
     fields = ('user', 'key', 'created_at')
     search_fields = ('user',)
+    readonly_fields = ('created_at',)

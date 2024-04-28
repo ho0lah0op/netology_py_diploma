@@ -16,8 +16,9 @@ from backend.views import (
     PartnerStateViewSet,
     PartnerUpdateViewSet,
     ProductInfoViewSet,
+    ProductViewSet,
     ShopViewSet,
-    UserViewSet
+    UserViewSet,
 )
 from backend.spectacular import SpectacularAPIView
 
@@ -70,6 +71,7 @@ router_v1.register(
     PartnerStateViewSet,
     basename='partner-state'
 )
+router_v1.register(r'products', ProductViewSet)
 
 urlpatterns = [
     path(

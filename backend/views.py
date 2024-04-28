@@ -9,6 +9,7 @@ from distutils.util import strtobool
 from djoser.views import UserViewSet as BaseUserViewSet
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import (
     IsAuthenticated,
     IsAuthenticatedOrReadOnly,
@@ -21,15 +22,17 @@ from rest_framework.viewsets import (
     ViewSet
 )
 
+from backend.forms import ImageUploadForm
 from backend.models import (
     Category,
     ConfirmEmailToken,
     Contact,
     Order,
     OrderItem,
+    Product,
     ProductInfo,
     Shop,
-    User
+    User,
 )
 from backend.permissions import (
     IsAuthorOrReadOnly,
@@ -42,6 +45,7 @@ from backend.serializers import (
     OrderSerializer,
     OrderItemSerializer,
     PartnerUpdateSerializer,
+    ProductSerializer,
     ProductInfoSerializer,
     ShopSerializer,
     UserSerializer,
@@ -49,6 +53,7 @@ from backend.serializers import (
 from backend.tasks import (
     confirm_order_async,
     create_order_async,
+    process_image_async,
     update_order_state_async
 )
 from backend.utils import validate_all_fields
@@ -59,6 +64,7 @@ class UserViewSet(BaseUserViewSet):
     serializer_class = UserSerializer
     permission_classes = (IsAuthenticatedOrReadOnly,)
     lookup_field = 'id'
+    parser_classes = (MultiPartParser, FormParser)
 
     def get_object(self):
         queryset = self.filter_queryset(self.get_queryset())
@@ -70,10 +76,12 @@ class UserViewSet(BaseUserViewSet):
         return obj
 
     def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
         serializer = self.get_serializer(
-            self.get_object(),
+            instance,
             data=request.data,
-            partial=kwargs.pop('partial', False)
+            partial=partial
         )
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
@@ -761,5 +769,53 @@ class PartnerStateViewSet(ViewSet):
         )
 
 
+class ProductViewSet(ModelViewSet):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+    permission_classes = (IsAuthenticatedOrReadOnly,)
+
+
 def home_page(request):
     return render(request, 'index.html')
+
+
+def upload_user_image(request, pk):
+    return upload_image(
+        request,
+        model_name=User,
+        image_field='avatar',
+        obj_id=pk
+    )
+
+
+def upload_product_image(request, pk):
+    return upload_image(
+        request,
+        model_name=Product,
+        image_field='image',
+        obj_id=pk
+    )
+
+
+def upload_image(request, model_name, image_field, obj_id):
+    if request.method == 'POST':
+        form = ImageUploadForm(request.POST, request.FILES)
+        if form.is_valid():
+            image = form.cleaned_data['image']
+            instance = model_name.objects.get(pk=obj_id)
+            setattr(instance, image_field, image)
+            instance.save()
+            process_image_async.delay(
+                image.read(),
+                model_name.__name__,
+                image_field,
+                obj_id
+            )
+            return render(request, 'success.html')
+    else:
+        form = ImageUploadForm()
+    return render(
+        request,
+        'upload.html',
+        {'form': form}
+    )

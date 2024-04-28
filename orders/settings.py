@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'drf_spectacular_sidecar',
     'social_django',
+    'easy_thumbnails',
 
     # local app
     'backend',
@@ -217,3 +218,10 @@ SITE_ID = 1
 
 CELERY_BROKER_URL = 'redis://localhost:6379'
 CELERY_RESULT_BACKEND = 'redis://localhost:6379'
+
+THUMBNAIL_ALIASES = {
+    '': {
+        'avatar': {'size': (100, 100)},
+        'product_image': {'size': (200, 200)},
+    },
+}
