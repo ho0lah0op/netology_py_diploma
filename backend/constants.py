@@ -8,6 +8,8 @@ USER_TYPE_CHOICES = {
     'buyer': 'Покупатель',
 }
 
+CACHE_TIMEOUT = 60
+
 # Константы Shop
 SHOPNAME_FIELD_LEN = 50
 

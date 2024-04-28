@@ -1,5 +1,6 @@
 import json
 
+from cacheops import cached, cached_as
 from django.contrib.auth.tokens import default_token_generator
 from django.db import IntegrityError, transaction
 from django.db.models import F, Q, Sum
@@ -22,6 +23,7 @@ from rest_framework.viewsets import (
     ViewSet
 )
 
+from backend.constants import CACHE_TIMEOUT
 from backend.forms import ImageUploadForm
 from backend.models import (
     Category,
@@ -66,6 +68,7 @@ class UserViewSet(BaseUserViewSet):
     lookup_field = 'id'
     parser_classes = (MultiPartParser, FormParser)
 
+    @cached(timeout=CACHE_TIMEOUT)
     def get_object(self):
         queryset = self.filter_queryset(self.get_queryset())
         obj = get_object_or_404(
@@ -94,12 +97,16 @@ class ContactViewSet(ViewSet):
     permission_classes = (IsAuthenticated, IsAuthorOrReadOnly)
     http_method_names = ['get', 'post', 'patch', 'put', 'delete']
 
+    @cached_as(Contact, timeout=CACHE_TIMEOUT)
+    def list_cached_contacts(self, request):
+        contacts = Contact.objects.filter(user=request.user)
+        serializer = ContactSerializer(contacts, many=True)
+        return serializer.data
+
     def list(self, request):
-        serializer = ContactSerializer(
-            Contact.objects.filter(user=request.user),
-            many=True
+        return Response(
+            self.list_cached_contacts(request)
         )
-        return Response(serializer.data)
 
     def create(self, request):
         serializer = ContactSerializer(data=request.data)
