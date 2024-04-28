@@ -45,6 +45,13 @@ touch .env
 sudo nano .env
 ```
 
+> ВАЖНО!
+>> - Как получить ключи для `SOCIAL_AUTH_GOOGLE_OAUTH2_KEY`
+     и `SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET` [здесь](https://zappycode.com/tutorials/integrating-google-auth-with-django-projects)
+>> - Как получить ключ для `SENTRY_DSN` [здесь](https://docs.sentry.io/platforms/python/integrations/django/)
+>> - Как получить необходимые ключи для отправки
+     писем [здесь](https://dev.to/shubhamkshatriya25/how-to-send-email-using-smtp-server-in-django-131f)
+
 5. Собрать `Docker` образ, в корне проекта запустить команду:
 
 ```
@@ -77,20 +84,35 @@ CREATE DATABASE YourDBName;
 \q
 ```
 
-8. Выполнить миграции:
+9. Запуск `Redis-сервера`:
+
+```
+sudo docker compose exec web redis-server
+```
+
+10. Запуск `Celery`:
+
+```
+sudo docker compose exec web celery -A orders worker
+
+# Для получения подробной информации используйте следующую команду
+sudo docker compose exec web celery -A orders worker -l info -E
+```
+
+11. Выполнить миграции:
 
 ```
 sudo docker compose exec web python manage.py makemigrations
 sudo docker compose exec web python manage.py migrate
 ```
 
-9. Создать суперпользователя:
+12. Создать суперпользователя:
 
 ```
 sudo docker compose exec web python manage.py createsuperuser
 ```
 
-10.
+13.
 
 ```
 Если необходимо реализовать отправку писем, раскомментируйте следующие строки в файле `settings.py`:
@@ -98,6 +120,45 @@ sudo docker compose exec web python manage.py createsuperuser
 
 # Эту строку закомментируйте
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+```
+
+14. Генерация документации `API`:
+
+    - Запустите команду в корне проекта:
+    - ```
+      python3 manage.py spectacular --color --file schema.yml
+      ```
+
+    - Или перейдите по следующему адресу:
+    - ```
+        localhost:8000/api/v1/schema/
+      ```
+
+15. Запуск тестов:
+
+```
+sudo docker compose exec web coverage run manage.py test
+
+# или 
+sudo docker compose exec web python3 manage.py test tests
+```
+
+16. Информация о покрытии тестами проекта:
+
+```
+sudo docker compose exec web coverage report -m
+```
+
+17. Загрузка изображений в профиль пользователя:
+
+```
+localhost:8000/user_image/{id}/
+```
+
+18. Загрузка изображений для продукта:
+
+```
+localhost:8000/product_image/{id}/
 ```
 
 ---
